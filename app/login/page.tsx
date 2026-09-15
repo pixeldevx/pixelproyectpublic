@@ -208,7 +208,7 @@ export default function LoginPage() {
           </button>
         </div>
         <p className="mt-6 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
-          ¿Nuevo en Pixel? <Link href="/register" className="font-semibold text-indigo-600 hover:text-indigo-800">Crea tu espacio gratis</Link>
+          ¿Nuevo en Pixel? <Link href="/register" className="font-semibold text-indigo-600 hover:text-indigo-800">Crea tu espacio y explora</Link>
         </p>
       </div>
     </div>

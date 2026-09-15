@@ -27,7 +27,7 @@ function PixelMark({ light = false }: { light?: boolean }) {
   return <span className={`${styles.pixelMark} ${light ? styles.pixelMarkLight : ''}`} aria-hidden="true">{Array.from({ length: 9 }, (_, index) => <i key={index} />)}</span>;
 }
 
-function TrialLink({ children = 'Crear mi espacio gratis', small = false }: { children?: React.ReactNode; small?: boolean }) {
+function ExploreLink({ children = 'Crear mi espacio', small = false }: { children?: React.ReactNode; small?: boolean }) {
   return <Link href="/register" className={`${styles.primaryButton} ${small ? styles.smallButton : ''}`}>{children}<ArrowUpRight size={18} aria-hidden="true" /></Link>;
 }
 
@@ -108,16 +108,16 @@ export default function LandingPage() {
         <div className={styles.headerInner}>
           <Link href="/" className={styles.brand} aria-label="Pixel Project, inicio"><PixelMark /><span>pixel<span className={styles.brandProject}>project</span></span></Link>
           <nav aria-label="Navegación principal" className={styles.navigation}><a href="#plataforma">La plataforma</a><a href="#tu-espacio">Tu espacio</a><a href="#preguntas">Preguntas</a></nav>
-          <div className={styles.headerActions}><Link href="/login" className={styles.loginLink}>Iniciar sesión</Link><TrialLink small>Probar gratis</TrialLink></div>
+          <div className={styles.headerActions}><Link href="/login" className={styles.loginLink}>Iniciar sesión</Link><ExploreLink small>Explorar Pixel</ExploreLink></div>
         </div>
       </header>
       <section id="contenido" className={styles.hero}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}><span /> TU TRABAJO, PIEZA POR PIEZA</p>
           <h1>Grandes ideas.<br />Todas las piezas.<br /><em>Un solo lugar.</em></h1>
-          <p className={styles.heroDescription}>Pixel Project conecta proyectos, personas y recursos para que puedas planear, ejecutar y dar seguimiento a tu trabajo.</p>
-          <div className={styles.heroActions}><TrialLink /><a href="#plataforma" className={styles.textLink}>Descubrir Pixel <ArrowDown size={16} aria-hidden="true" /></a></div>
-          <p className={styles.trialNote}><Check size={14} /> 14 días gratis <span /> Sin tarjeta de crédito</p>
+          <p className={styles.heroDescription}>Creé Pixel Project para conectar proyectos, personas y recursos en un mismo lugar. Hoy te invito a explorarlo y darle forma a tus propias ideas.</p>
+          <div className={styles.heroActions}><ExploreLink /><a href="#plataforma" className={styles.textLink}>Descubrir Pixel <ArrowDown size={16} aria-hidden="true" /></a></div>
+          <p className={styles.trialNote}><Check size={14} /> Tu espacio para explorar <span /> Tus ideas para hacerlo crecer</p>
         </div>
         <div className={styles.heroVisual}><div className={styles.cornerPixels} aria-hidden="true"><i /><i /><i /><i /></div><ProductPreview /></div>
         <div className={styles.heroBottom}><p>DEL PRIMER PLAN A LA ÚLTIMA ENTREGA</p><div><span><CalendarDays size={16} /> Planifica con claridad</span><span><Users size={16} /> Conecta a tu equipo</span><span><CircleCheck size={16} /> Sigue cada avance</span></div></div>
@@ -134,19 +134,19 @@ export default function LandingPage() {
         <div className={styles.workspaceCopy}><p className={styles.eyebrow}>HECHO PARA TU FORMA DE TRABAJAR</p><h2>Tu organización.<br />Tu propio universo.</h2><p>Al registrarte, creas un espacio de trabajo para tu organización. Allí viven tus proyectos, documentos y recursos.</p><ul><li><Check size={17} /><span><strong>Tu espacio es privado.</strong> Otras organizaciones no pueden ver tus proyectos ni tus archivos.</span></li><li><Check size={17} /><span><strong>Tú organizas el trabajo.</strong> Empieza por tu cuenta y define los accesos de tu equipo.</span></li><li><Check size={17} /><span><strong>Listo para explorar.</strong> Prueba los módulos con tus propios proyectos, a tu ritmo.</span></li></ul><Link href="/register" className={styles.textLink}>Crear mi organización <ArrowRight size={18} /></Link></div>
       </section>
       <section className={styles.startSection}>
-        <div className={styles.startIntro}><p className={styles.eyebrow}>DE LA CURIOSIDAD A LA ACCIÓN</p><h2>Tu primer proyecto<br />empieza aquí.</h2><p>Una cuenta. Un espacio propio.<br />14 días para descubrir qué puedes hacer.</p><TrialLink>Empezar mi prueba</TrialLink></div>
-        <ol className={styles.steps}><li><span>01</span><div><h3>Crea tu cuenta</h3><p>Regístrate con tu correo y confirma tu acceso.</p></div><Plus size={18} aria-hidden="true" /></li><li><span>02</span><div><h3>Dale nombre a tu organización</h3><p>Prepara el espacio donde vas a trabajar. Tú serás su administrador.</p></div><Building2 size={18} aria-hidden="true" /></li><li><span>03</span><div><h3>Convierte una idea en proyecto</h3><p>Crea tareas, agrega documentos y explora los módulos con tu prueba gratuita.</p></div><ArrowUpRight size={18} aria-hidden="true" /></li></ol>
+        <div className={styles.startIntro}><p className={styles.eyebrow}>DE LA CURIOSIDAD A LA ACCIÓN</p><h2>Tu primer proyecto<br />empieza aquí.</h2><p>Una cuenta. Un espacio propio.<br />Una invitación a descubrir lo que puedes crear.</p><ExploreLink>Quiero probar Pixel</ExploreLink></div>
+        <ol className={styles.steps}><li><span>01</span><div><h3>Crea tu cuenta</h3><p>Regístrate con tu correo y confirma tu acceso.</p></div><Plus size={18} aria-hidden="true" /></li><li><span>02</span><div><h3>Dale nombre a tu organización</h3><p>Prepara el espacio donde vas a trabajar. Tú serás su administrador.</p></div><Building2 size={18} aria-hidden="true" /></li><li><span>03</span><div><h3>Convierte una idea en proyecto</h3><p>Crea tareas, agrega documentos y conoce los módulos mientras experimentas con una idea propia.</p></div><ArrowUpRight size={18} aria-hidden="true" /></li></ol>
       </section>
       <section id="preguntas" className={styles.faqSection}>
         <div><p className={styles.eyebrow}>ANTES DE EMPEZAR</p><h2>Lo que quieres saber.</h2></div>
         <div className={styles.faqList}>{[
           ['¿Qué es Pixel Project?', 'Es una plataforma para gestionar proyectos y su operación: tareas, equipos, documentos, presupuesto, inventario, flujos de trabajo y calidad. La información se organiza dentro de tu espacio de trabajo.'],
-          ['¿Necesito una tarjeta para probarlo?', 'No. Puedes crear tu cuenta y tu organización para explorar Pixel durante 14 días sin ingresar una tarjeta de crédito.'],
+          ['¿Cómo puedo aprender a usar Pixel?', 'Crea tu cuenta y abre «Aprender Pixel» desde el menú. El tutorial interactivo te acompaña con ejercicios sobre proyectos, usuarios, grupos, tareas, Gantt, flujos y Rate Cards, sin modificar tus datos reales.'],
           ['¿Otras personas pueden ver mi organización?', 'Las personas de otras organizaciones no pueden acceder a tu espacio. Dentro de tu organización, el acceso depende de los miembros, sus roles y los permisos de cada proyecto.'],
           ['¿Puedo empezar si trabajo por mi cuenta?', 'Sí. Puedes ser el único integrante de tu organización. Crea tu espacio y empieza a organizar tus propios proyectos.'],
         ].map(([question, answer]) => <details key={question}><summary>{question}<Plus size={19} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div>
       </section>
-      <section className={styles.finalCta}><div className={styles.ctaPixels} aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} />)}</div><div><p className={styles.eyebrow}>EL SIGUIENTE PIXEL LO PONES TÚ</p><h2>Dale espacio<br />a tu próximo proyecto.</h2><p>Empieza a construir con todas las piezas a mano.</p><TrialLink /><span className={styles.finalTrialNote}>14 días gratis · Sin tarjeta</span></div></section>
+      <section className={styles.finalCta}><div className={styles.ctaPixels} aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} />)}</div><div><p className={styles.eyebrow}>EL SIGUIENTE PIXEL LO PONES TÚ</p><h2>Te invito a probar<br />lo que estoy creando.</h2><p>Explora, crea un proyecto y comparte tus impresiones. Tu experiencia puede ayudarme a seguir mejorando Pixel.</p><ExploreLink>Quiero probar Pixel</ExploreLink><span className={styles.finalTrialNote}>Gracias por ser parte de esta etapa.</span></div></section>
       <footer className={styles.footer}><Link href="/" className={styles.brand} aria-label="Pixel Project, inicio"><PixelMark /><span>pixel<span className={styles.brandProject}>project</span></span></Link><p>Una idea. Muchas piezas. Pixel Project.</p><nav aria-label="Enlaces del pie de página"><a href="#plataforma">La plataforma</a><Link href="/login">Iniciar sesión</Link><Link href="/register">Crear cuenta <ArrowUpRight size={13} /></Link></nav></footer>
     </main>
   );

@@ -1,8 +1,8 @@
 Dale espacio a tus ideas.
 
-Te damos la bienvenida a Pixel Project. Confirma tu correo para crear tu espacio de trabajo y empezar a organizar tus proyectos con tu equipo.
+Gracias por animarte a conocer Pixel Project. Confirma tu correo para crear tu espacio y empezar a explorar con tus propias ideas.
 
-Tu prueba gratuita de 14 días empieza al crear tu espacio. No necesitas tarjeta. Tus proyectos, organizaciones y archivos estarán separados de los de otros espacios.
+Tendrás 14 días para explorar desde la creación de tu espacio. Puedes empezar con el tutorial Aprender Pixel y dar forma a tu primer proyecto. Tu organización y sus archivos estarán separados de los de otros espacios.
 
 Confirmar mi correo: {{ .ConfirmationURL }}
 

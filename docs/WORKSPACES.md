@@ -1,4 +1,4 @@
-# Espacios de trabajo y pruebas gratuitas
+# Espacios de trabajo y exploración
 
 ## Experiencia
 

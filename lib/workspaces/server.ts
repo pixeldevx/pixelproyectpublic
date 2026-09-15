@@ -64,7 +64,7 @@ const loadWorkspaceMembership = async (platform: any, user: User, token: string)
     throw new WorkspaceAccessError('Este espacio de trabajo no está activo.', 403);
   }
   if (workspace.status === 'trial' && (!workspace.trial_ends_at || Date.parse(workspace.trial_ends_at) <= Date.now())) {
-    throw new WorkspaceAccessError('La prueba gratuita de este espacio ha terminado.', 403);
+    throw new WorkspaceAccessError('El periodo de exploración de este espacio ha terminado.', 403);
   }
   return { workspaceId: workspace.id, role: member.role, user, token };
 };

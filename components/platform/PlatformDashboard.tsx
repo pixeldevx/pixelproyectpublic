@@ -17,7 +17,7 @@ const number = (value: number | undefined) => value === undefined ? '—' : new 
 
 function WorkspaceStatus({ workspace }: { workspace: PlatformWorkspace }) {
   const expired = workspace.status === 'trial' && (!workspace.trial_ends_at || new Date(workspace.trial_ends_at).getTime() <= Date.now());
-  const label = workspace.status === 'suspended' ? 'Suspendido' : workspace.status === 'active' ? 'Activo' : expired ? 'Prueba vencida' : 'Prueba gratuita';
+  const label = workspace.status === 'suspended' ? 'Suspendido' : workspace.status === 'active' ? 'Activo' : expired ? 'Prueba vencida' : 'En exploración';
   const colors = workspace.status === 'suspended' ? 'bg-rose-50 text-rose-800 ring-rose-200' : workspace.status === 'active' ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : expired ? 'bg-amber-50 text-amber-800 ring-amber-200' : 'bg-blue-50 text-blue-800 ring-blue-200';
   return <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${colors}`}>{label}</span>;
 }
@@ -151,7 +151,7 @@ export function PlatformDashboard({ currentUserId, currentWorkspaceId }: { curre
           { label: 'Espacios de trabajo', value: summary?.workspaces, note: `${number(summary?.activeWorkspaces)} activos`, icon: Layers3 },
           { label: 'Usuarios registrados', value: summary?.users, note: 'Todas las cuentas', icon: Users },
           { label: 'Organizaciones', value: summary?.organizations, note: 'Dentro de sus espacios', icon: Building2 },
-          { label: 'En prueba gratuita', value: summary?.trialWorkspaces, note: `${number(summary?.suspendedWorkspaces)} espacios suspendidos`, icon: Clock3 },
+          { label: 'En exploración', value: summary?.trialWorkspaces, note: `${number(summary?.suspendedWorkspaces)} espacios suspendidos`, icon: Clock3 },
         ].map((item) => <article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><div className="mb-4 flex items-center justify-between gap-2"><p className="text-xs font-medium text-slate-500 sm:text-sm">{item.label}</p><item.icon className="h-4 w-4 shrink-0 text-emerald-800" /></div><p className="text-3xl font-semibold tracking-tight text-slate-900">{number(item.value)}</p><p className="mt-2 text-xs text-slate-500">{item.note}</p></article>)}
       </section>
 

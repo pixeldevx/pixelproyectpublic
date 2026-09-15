@@ -33,7 +33,7 @@ npm run build
 
 ## Registro y espacios de prueba
 
-La portada explica los módulos e incluye acceso a `/register`. Un correo confirmado crea, de forma transaccional, un espacio privado con organización, perfil de propietario y roles iniciales. La prueba dura 14 días sin tarjeta; al vencer se bloquea el acceso operativo y se conservan los datos. La misma base soporta todos los espacios mediante membresías protegidas y políticas RLS.
+La portada explica los módulos e incluye acceso a `/register`. Un correo confirmado crea, de forma transaccional, un espacio privado con organización, perfil de propietario y roles iniciales. El periodo de exploración dura 14 días; al vencer se bloquea el acceso operativo y se conservan los datos. La misma base soporta todos los espacios mediante membresías protegidas y políticas RLS.
 
 Antes de aplicar `20260915200621_workspace_trials.sql`, debe existir exactamente un administrador inicial en Auth que coincida con el perfil bootstrap. La migración conserva los registros actuales dentro de su espacio activo. No debe aplicarse a una instalación corporativa con múltiples administradores sin adaptar antes el traspaso.
 

@@ -19,7 +19,7 @@ export function WorkspaceAccessState() {
           {busy ? <Loader2 size={26} className="animate-spin" /> : expired ? <Clock3 size={26} /> : <Building2 size={26} />}
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-950">
-          {opening ? 'Abriendo tu espacio' : loading ? 'Preparando tu espacio' : suspended ? 'Tu espacio está pausado' : expired ? 'Tu prueba gratuita ha terminado' : 'Vamos a terminar de preparar tu espacio'}
+          {opening ? 'Abriendo tu espacio' : loading ? 'Preparando tu espacio' : suspended ? 'Tu espacio está pausado' : expired ? 'Tu periodo de exploración ha terminado' : 'Vamos a terminar de preparar tu espacio'}
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600" role={accessError ? 'alert' : 'status'}>
           {opening
@@ -29,7 +29,7 @@ export function WorkspaceAccessState() {
             : suspended
               ? 'El acceso a esta organización está pausado. Tu cuenta sigue disponible.'
               : expired
-                ? `La prueba de ${workspace?.name || 'tu organización'} ha finalizado. No se realizará ningún cobro automático.`
+                ? `El periodo de exploración de ${workspace?.name || 'tu organización'} ha finalizado. Gracias por conocer Pixel y darle un espacio a tus ideas.`
                 : accessError || 'Tu cuenta ya está creada. Reintenta para abrir tu organización sin duplicar el registro.'}
         </p>
         <div className="mt-7 flex flex-wrap gap-3">

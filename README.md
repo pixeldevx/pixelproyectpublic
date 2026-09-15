@@ -8,9 +8,9 @@ La idea central es simple: cada actividad, costo, activo, interacción y geometr
 
 Instancia pública independiente: [public.pixelprojects.com.co](https://public.pixelprojects.com.co).
 
-Esta copia parte del código corporativo con un historial Git nuevo y una base de datos independiente. No contiene datos operativos ni cuentas del sistema corporativo. El registro público crea una prueba gratuita de 14 días: después de confirmar el correo, cada cuenta obtiene su propio espacio y organización. Todos los espacios comparten la misma base de datos con acceso separado por membresías y políticas de filas. Los archivos son privados. Los avisos automáticos de anticipos y la limpieza programada están desactivados.
+Esta copia parte del código corporativo con un historial Git nuevo y una base de datos independiente. No contiene datos operativos ni cuentas del sistema corporativo. El registro público crea una espacio de exploración de 14 días: después de confirmar el correo, cada cuenta obtiene su propio espacio y organización. Todos los espacios comparten la misma base de datos con acceso separado por membresías y políticas de filas. Los archivos son privados. Los avisos automáticos de anticipos y la limpieza programada están desactivados.
 
-Consulta [espacios y pruebas gratuitas](docs/WORKSPACES.md) para conocer el aislamiento, las pruebas y los requisitos del correo de confirmación.
+Consulta [espacios de trabajo y exploración](docs/WORKSPACES.md) para conocer el aislamiento, las pruebas y los requisitos del correo de confirmación.
 
 El menú **Aprender Pixel** ofrece siete prácticas interactivas con datos de ejemplo. La cuenta global tiene un panel de soporte en **Administración global**, con directorios de usuarios y organizaciones, gestión de pruebas y accesos e historial de intervenciones. Consulta [administración de plataforma](docs/PLATFORM_SUPPORT.md) y [plantillas de correo](docs/EMAIL_TEMPLATES.md).
 

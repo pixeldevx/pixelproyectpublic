@@ -25,7 +25,7 @@ const templates = [
   {
     key: 'confirmation', file: 'confirm-signup', dashboard: 'Confirm sign up', subject: 'Confirma tu correo y empieza en Pixel Project',
     content: { eyebrow: 'Tu próximo proyecto empieza aquí', heading: 'Dale espacio a tus ideas.', preview: 'Confirma tu correo para crear tu espacio privado en Pixel Project.',
-      paragraphs: ['Te damos la bienvenida a Pixel Project. Confirma tu correo para crear tu espacio de trabajo y empezar a organizar tus proyectos con tu equipo.', 'Tu prueba gratuita de 14 días empieza al crear tu espacio. No necesitas tarjeta. Tus proyectos, organizaciones y archivos estarán separados de los de otros espacios.'],
+      paragraphs: ['Gracias por animarte a conocer Pixel Project. Confirma tu correo para crear tu espacio y empezar a explorar con tus propias ideas.', 'Tendrás 14 días para explorar desde la creación de tu espacio. Puedes empezar con el tutorial Aprender Pixel y dar forma a tu primer proyecto. Tu organización y sus archivos estarán separados de los de otros espacios.'],
       action: { label: 'Confirmar mi correo', url: actionUrl } },
   },
   {
