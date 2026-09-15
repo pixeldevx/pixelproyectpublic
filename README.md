@@ -8,7 +8,7 @@ La idea central es simple: cada actividad, costo, activo, interacción y geometr
 
 Dominio previsto para la instancia pública independiente: `https://public.pixelprojects.com.co`.
 
-Esta copia parte del código corporativo con un historial Git nuevo y una base de datos independiente. No contiene datos operativos ni cuentas del sistema corporativo. El acceso inicial se mantiene por invitación; el registro libre aún no forma parte de esta versión.
+Esta copia parte del código corporativo con un historial Git nuevo y una base de datos independiente. No contiene datos operativos ni cuentas del sistema corporativo. El acceso inicial se mantiene por invitación; el registro libre aún no forma parte de esta versión. Los archivos son privados y solo se descargan desde una sesión autorizada. Los avisos automáticos de anticipos y la limpieza programada están desactivados.
 
 ## Licencia
 

@@ -97,7 +97,7 @@ const randomSegment = () => {
     .toUpperCase();
 };
 
-const generateLicenseKey = () => `VANTI-${new Date().getFullYear()}-${randomSegment()}-${randomSegment()}`;
+const generateLicenseKey = () => `PIXEL-${new Date().getFullYear()}-${randomSegment()}-${randomSegment()}`;
 
 const getLicenseState = (license: License) => {
   if (!license.active) return { label: 'Inactiva', variant: 'destructive' as const };
@@ -310,7 +310,7 @@ export default function LicensesPage() {
               </div>
               <h1 className="mt-4 text-3xl font-black tracking-tight">Licencias para scripts Python</h1>
               <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-300">
-                Crea claves, controla usos disponibles y audita cada ejecución de VANTI Suite desde Pixel.
+                Crea claves, controla usos disponibles y audita cada ejecución de la aplicación desde Pixel.
                 Los scripts consumen los endpoints REST definidos en la especificación.
               </p>
             </div>
@@ -340,7 +340,7 @@ export default function LicensesPage() {
                     <Input
                       value={form.license_key}
                       onChange={(event) => setForm((current) => ({ ...current, license_key: normalizeLicenseKey(event.target.value) }))}
-                      placeholder="VANTI-2026-CLIENTE"
+                      placeholder="PIXEL-2026-CLIENTE"
                       className="h-11 font-mono font-bold"
                     />
                     <Button
@@ -457,7 +457,7 @@ export default function LicensesPage() {
                   <div className="rounded-2xl border border-dashed border-slate-200 p-10 text-center">
                     <KeyRound className="mx-auto mb-3 h-10 w-10 text-slate-300" />
                     <p className="text-sm font-black text-slate-900">Aún no hay licencias</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">Crea la primera clave para conectar VANTI Suite.</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">Crea la primera clave para conectar la aplicación.</p>
                   </div>
                 ) : (
                   <div className="overflow-hidden rounded-2xl border border-slate-200">

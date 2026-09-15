@@ -225,7 +225,7 @@ function ProductScene() {
           <div className="bg-white p-5 text-slate-950 sm:p-7">
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.28em] text-emerald-700">Proyecto VANTI</p>
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-emerald-700">Proyecto PIXEL</p>
                 <h3 className="mt-1 text-xl font-black">Mapa operativo</h3>
               </div>
               <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-600">

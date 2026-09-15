@@ -1,12 +1,5 @@
 {
   "crons": [
-    {
-      "path": "/api/github/repair",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/notifications/advance-request-reconcile",
-      "schedule": "30 9 * * *"
-    }
+    { "path": "/api/github/repair", "schedule": "0 8 * * *" }
   ]
 }
