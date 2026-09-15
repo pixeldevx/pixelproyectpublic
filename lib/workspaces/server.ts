@@ -17,7 +17,7 @@ const TENANT_RPCS = new Set([
   'app_reassign_contractor_account_approver',
 ]);
 
-/** Only onboarding and this authentication boundary may use the raw client. */
+/** Raw access is reserved for this boundary and the independently verified global support API. */
 export const createPlatformClient = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -53,9 +53,10 @@ export const requireWorkspaceContext = async (request: Request): Promise<Workspa
 
 const loadWorkspaceMembership = async (platform: any, user: User, token: string): Promise<WorkspaceServerContext> => {
   const { data: member, error: memberError } = await platform
-    .from('app_workspace_members').select('workspace_id,role').eq('user_id', user.id).maybeSingle();
+    .from('app_workspace_members').select('workspace_id,role,suspended_at').eq('user_id', user.id).maybeSingle();
   if (memberError) throw new WorkspaceAccessError('No se pudo validar tu espacio de trabajo.', 503);
   if (!member) throw new WorkspaceAccessError('Completa la creación de tu espacio de trabajo.', 403);
+  if (member.suspended_at) throw new WorkspaceAccessError('Tu cuenta está pausada. Contacta al soporte de Pixel.', 403);
   const { data: workspace, error: workspaceError } = await platform
     .from('app_workspaces').select('id,status,trial_ends_at').eq('id', member.workspace_id).maybeSingle();
   if (workspaceError) throw new WorkspaceAccessError('No se pudo validar tu espacio de trabajo.', 503);

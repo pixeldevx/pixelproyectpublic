@@ -1,0 +1,10 @@
+Confirma tu nuevo correo.
+
+Se solicitó cambiar la dirección de correo de tu cuenta de Pixel Project. Confirma la solicitud para continuar con la actualización.
+
+Confirmar cambio de correo: {{ .ConfirmationURL }}
+
+Si no solicitaste este cambio, no uses el enlace. Entra a Pixel Project desde su dirección habitual y revisa la seguridad de tu cuenta.
+
+Pixel Project · Tu equipo. Tus proyectos. Un mismo lugar.
+{{ .SiteURL }}

@@ -1,0 +1,8 @@
+Tu correo fue actualizado.
+
+La dirección de correo de tu cuenta de Pixel Project fue actualizada. Si hiciste este cambio, no necesitas realizar ninguna otra acción.
+
+Si no reconoces este cambio, entra a Pixel Project desde su dirección habitual y contacta al administrador de tu espacio. Nunca compartas contraseñas ni códigos de acceso.
+
+Pixel Project · Tu equipo. Tus proyectos. Un mismo lugar.
+{{ .SiteURL }}

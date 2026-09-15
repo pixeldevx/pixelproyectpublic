@@ -21,7 +21,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user && workspace && !workspaceExpired) {
-      router.replace('/dashboard');
+      router.replace(workspace.is_platform_admin ? '/platform' : '/dashboard');
     }
   }, [loading, router, user, workspace, workspaceExpired]);
 

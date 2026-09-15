@@ -113,7 +113,7 @@ const authenticationFixture = (options = {}) => {
       const query = {};
       for (const method of ['select', 'eq']) query[method] = (...args) => { calls.push([table, method, ...args]); return query; };
       query.maybeSingle = async () => ({ error: null, data: table === 'app_workspace_members'
-        ? (options.member === null ? null : { workspace_id: tenantA, role: 'owner' })
+        ? (options.member === null ? null : { workspace_id: tenantA, role: 'owner', suspended_at: options.suspendedAt || null })
         : { id: tenantA, status: options.status || 'active', trial_ends_at: options.endsAt || null } });
       return query;
     },
@@ -143,7 +143,7 @@ test('missing membership and unconfirmed email cannot access server tenant data'
 });
 
 test('expired trial and suspended workspace are rejected by server boundaries', async () => {
-  for (const options of [{ status: 'trial', endsAt: '2000-01-01T00:00:00Z' }, { status: 'suspended' }]) {
+  for (const options of [{ status: 'trial', endsAt: '2000-01-01T00:00:00Z' }, { status: 'suspended' }, { suspendedAt: '2026-09-01T00:00:00Z' }]) {
     const { authorize } = authenticationFixture(options);
     await assert.rejects(authorize(new Request('https://pixel.test/api', { headers: { authorization: 'Bearer token' } })), (error) => error.status === 403);
   }

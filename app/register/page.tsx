@@ -25,7 +25,7 @@ export default function RegisterPage() {
   const [resendAfter, setResendAfter] = useState(0);
 
   useEffect(() => {
-    if (!loading && user && workspace && !workspaceExpired) router.replace('/dashboard');
+    if (!loading && user && workspace && !workspaceExpired) router.replace(workspace.is_platform_admin ? '/platform' : '/dashboard');
   }, [loading, router, user, workspace, workspaceExpired]);
 
   useEffect(() => {

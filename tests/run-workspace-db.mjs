@@ -29,7 +29,7 @@ try {
     create schema extensions;
     create table auth.users (
       id uuid primary key default gen_random_uuid(),
-      aud text, role text, email text unique, email_confirmed_at timestamptz,
+      aud text, role text, email text unique, email_confirmed_at timestamptz, invited_at timestamptz, last_sign_in_at timestamptz,
       is_anonymous boolean default false, raw_user_meta_data jsonb default '{}'::jsonb,
       raw_app_meta_data jsonb default '{}'::jsonb, created_at timestamptz default now()
     );
@@ -85,6 +85,9 @@ try {
   stage = 'workspace_rpc.sql';
   await db.exec(await fs.readFile(path.join(root, 'supabase/tests/workspace_rpc.sql'), 'utf8'));
   console.log('Service-role RPC tenant isolation and independent idempotency keys passed.');
+  stage = 'platform_support.sql';
+  await db.exec(await fs.readFile(path.join(root, 'supabase/tests/platform_support.sql'), 'utf8'));
+  console.log('Global support authorization, audit and account suspension passed.');
   const result = await db.query('select count(*)::integer as workspaces from public.app_workspaces');
   console.log(`Rollback verified: ${result.rows[0].workspaces} original workspace remains.`);
 } catch (error) {

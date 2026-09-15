@@ -12,6 +12,8 @@ Esta copia parte del código corporativo con un historial Git nuevo y una base d
 
 Consulta [espacios y pruebas gratuitas](docs/WORKSPACES.md) para conocer el aislamiento, las pruebas y los requisitos del correo de confirmación.
 
+El menú **Aprender Pixel** ofrece siete prácticas interactivas con datos de ejemplo. La cuenta global tiene un panel de soporte en **Administración global**, con directorios de usuarios y organizaciones, gestión de pruebas y accesos e historial de intervenciones. Consulta [administración de plataforma](docs/PLATFORM_SUPPORT.md) y [plantillas de correo](docs/EMAIL_TEMPLATES.md).
+
 ## Licencia
 
 Este proyecto se publica bajo licencia MIT. Consulta:

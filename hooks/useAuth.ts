@@ -77,6 +77,9 @@ function useAuthState(): AuthContextValue {
     });
     if (error || !data?.id || !data?.organization_id) {
       console.error('Workspace provisioning failed:', error?.code || 'missing_workspace');
+      if (error?.code === '42501' && error.message?.includes('cuenta está pausada')) {
+        throw new Error('Tu cuenta está pausada. Contacta al soporte de Pixel para recuperar el acceso.');
+      }
       throw new Error('No pudimos preparar tu espacio de trabajo. Tu cuenta sigue activa; puedes reintentar en un momento.');
     }
     if (verificationVersion.current !== version) throw new Error('Verificación cancelada.');

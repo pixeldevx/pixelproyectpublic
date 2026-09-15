@@ -1,0 +1,12 @@
+Tu equipo te espera.
+
+Recibiste una invitación para colaborar en Pixel Project. Acepta el acceso y crea tu contraseña para organizar proyectos, compartir tareas y avanzar con tu equipo.
+
+Trabajarás en el espacio que te invitó, con los permisos asignados por su administrador.
+
+Aceptar y crear mi contraseña: {{ .ConfirmationURL }}
+
+Este enlace es personal y tiene vigencia limitada. No lo compartas. Si no solicitaste esta acción, puedes ignorar el mensaje. Pixel nunca te pedirá tu contraseña por correo.
+
+Pixel Project · Tu equipo. Tus proyectos. Un mismo lugar.
+{{ .SiteURL }}

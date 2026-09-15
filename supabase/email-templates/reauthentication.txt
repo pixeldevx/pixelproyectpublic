@@ -1,0 +1,10 @@
+Un paso para proteger tu cuenta.
+
+Escribe el siguiente código en la pantalla de Pixel Project donde solicitaste verificar tu identidad.
+
+Código: {{ .Token }}
+
+Este código es personal y tiene vigencia limitada. No lo compartas. Si no solicitaste esta verificación, ignora el mensaje. Pixel nunca te pedirá este código por correo.
+
+Pixel Project · Tu equipo. Tus proyectos. Un mismo lugar.
+{{ .SiteURL }}

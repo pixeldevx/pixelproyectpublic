@@ -1,0 +1,10 @@
+Continúa donde lo dejaste.
+
+Usa este enlace para iniciar sesión en Pixel Project. Te llevará a tu espacio de trabajo para continuar con tu equipo y tus proyectos.
+
+Entrar a Pixel Project: {{ .ConfirmationURL }}
+
+Este enlace es personal y tiene vigencia limitada. No lo compartas. Si no solicitaste esta acción, puedes ignorar el mensaje. Pixel nunca te pedirá tu contraseña por correo.
+
+Pixel Project · Tu equipo. Tus proyectos. Un mismo lugar.
+{{ .SiteURL }}

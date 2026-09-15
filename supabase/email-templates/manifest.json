@@ -1,0 +1,66 @@
+[
+  {
+    "key": "confirmation",
+    "file": "confirm-signup",
+    "dashboard": "Confirm sign up",
+    "subject": "Confirma tu correo y empieza en Pixel Project",
+    "html": "confirm-signup.html",
+    "text": "confirm-signup.txt"
+  },
+  {
+    "key": "invite",
+    "file": "invite-user",
+    "dashboard": "Invite user",
+    "subject": "Tu equipo te espera en Pixel Project",
+    "html": "invite-user.html",
+    "text": "invite-user.txt"
+  },
+  {
+    "key": "recovery",
+    "file": "reset-password",
+    "dashboard": "Reset password",
+    "subject": "Restablece tu contraseña de Pixel Project",
+    "html": "reset-password.html",
+    "text": "reset-password.txt"
+  },
+  {
+    "key": "magic_link",
+    "file": "magic-link",
+    "dashboard": "Magic link",
+    "subject": "Tu enlace de acceso a Pixel Project",
+    "html": "magic-link.html",
+    "text": "magic-link.txt"
+  },
+  {
+    "key": "email_change",
+    "file": "change-email",
+    "dashboard": "Change email address",
+    "subject": "Confirma el cambio de correo en Pixel Project",
+    "html": "change-email.html",
+    "text": "change-email.txt"
+  },
+  {
+    "key": "reauthentication",
+    "file": "reauthentication",
+    "dashboard": "Reauthentication",
+    "subject": "Tu código de verificación de Pixel Project",
+    "html": "reauthentication.html",
+    "text": "reauthentication.txt"
+  },
+  {
+    "key": "password_changed_notification",
+    "file": "password-changed",
+    "dashboard": "Password changed",
+    "subject": "Tu contraseña de Pixel Project fue actualizada",
+    "html": "password-changed.html",
+    "text": "password-changed.txt"
+  },
+  {
+    "key": "email_changed_notification",
+    "file": "email-changed",
+    "dashboard": "Email address changed",
+    "subject": "El correo de tu cuenta de Pixel Project cambió",
+    "html": "email-changed.html",
+    "text": "email-changed.txt"
+  }
+]

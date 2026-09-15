@@ -21,7 +21,9 @@ import {
   PackageSearch,
   UserCircle,
   BriefcaseBusiness,
-  KeyRound
+  KeyRound,
+  GraduationCap,
+  LifeBuoy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -61,7 +63,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const canAccessBillingOverview = Boolean(rolePermissions.billingOverview);
   const canAccessPersonnelOverview = Boolean(rolePermissions.personnelOverview);
   const canAccessAdministrationOverview = Boolean(user);
-  const roleLabel = userRole === 'admin' ? 'Administrador del espacio' : ROLE_LABELS[userRole || ''] || 'Perfil de usuario';
+  const roleLabel = workspace?.is_platform_admin ? 'Administrador global' : userRole === 'admin' ? 'Administrador del espacio' : ROLE_LABELS[userRole || ''] || 'Perfil de usuario';
   const trialDays = trialDaysRemaining(workspace);
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'Usuario';
   const userInitial = displayName.charAt(0).toUpperCase();
@@ -216,6 +218,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
           <NavItem href="/dashboard" icon={<LayoutDashboard size={18} />} label="Inicio" active={pathname === '/dashboard'} collapsed={isCollapsed} />
+          <NavItem href="/tutorial" icon={<GraduationCap size={18} />} label="Aprender Pixel" active={pathname?.startsWith('/tutorial')} collapsed={isCollapsed} />
           <NavItem href="/workflows" icon={<Inbox size={18} />} label="Bandeja de entrada" active={pathname?.startsWith('/workflows')} collapsed={isCollapsed} badge={inboxPendingCount} />
           <NavItem href="/projects" icon={<FolderKanban size={18} />} label="Proyectos" active={pathname?.startsWith('/projects')} collapsed={isCollapsed} />
           <NavItem href="/team" icon={<Users size={18} />} label="Equipo" active={pathname?.startsWith('/team')} collapsed={isCollapsed} />
@@ -254,7 +257,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <NavItem href="/settings" icon={<Settings size={18} />} label="Configuración" active={pathname?.startsWith('/settings')} collapsed={isCollapsed} />
           )}
           {workspace?.is_platform_admin === true && (
-            <NavItem href="/licenses" icon={<KeyRound size={18} />} label="Licenciamiento" active={pathname?.startsWith('/licenses')} collapsed={isCollapsed} />
+            <>
+              <NavItem href="/platform" icon={<LifeBuoy size={18} />} label="Administración global" active={pathname?.startsWith('/platform')} collapsed={isCollapsed} />
+              <NavItem href="/licenses" icon={<KeyRound size={18} />} label="Licenciamiento" active={pathname?.startsWith('/licenses')} collapsed={isCollapsed} />
+            </>
           )}
         </nav>
         
