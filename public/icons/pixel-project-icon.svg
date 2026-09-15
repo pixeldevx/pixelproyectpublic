@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pixel Project">
+  <defs>
+    <linearGradient id="px-bg" x1="80" x2="432" y1="64" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="0.45" stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+    <filter id="px-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="22" flood-color="#1e1b4b" flood-opacity=".28"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#f8fafc"/>
+  <rect x="64" y="64" width="384" height="384" rx="92" fill="url(#px-bg)" filter="url(#px-shadow)"/>
+  <path fill="#fff" d="M147 170h118c49 0 82 31 82 77 0 45-33 77-82 77h-55v78h-63V170Zm108 100c18 0 29-9 29-23 0-15-11-23-29-23h-45v46h45Z"/>
+  <path fill="#fff" d="M324 304l-61-134h68l31 77 33-77h66l-62 134 65 98h-70l-32-52-33 52h-69l64-98Z" opacity=".96"/>
+</svg>

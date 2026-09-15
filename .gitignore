@@ -1,0 +1,15 @@
+node_modules/
+.next/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Private reTerminal Wi-Fi credentials and Pixel device token.
+firmware/reterminal-e1001-pixel/config.h
+
+# Local build and deployment state
+*.tsbuildinfo
+.vercel/
+supabase/.temp/

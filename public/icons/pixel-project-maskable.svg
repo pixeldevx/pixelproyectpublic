@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pixel Project">
+  <defs>
+    <linearGradient id="bg" x1="64" x2="448" y1="48" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset=".52" stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#0891b2"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="421" cy="92" r="48" fill="#22d3ee" opacity=".45"/>
+  <circle cx="83" cy="433" r="62" fill="#14b8a6" opacity=".32"/>
+  <path fill="#fff" d="M126 151h125c55 0 91 34 91 84 0 51-36 84-91 84h-58v81h-67V151Zm113 104c20 0 32-9 32-25 0-15-12-25-32-25h-46v50h46Z"/>
+  <path fill="#fff" d="M328 300 262 151h72l34 85 36-85h70l-67 149 70 100h-74l-36-56-35 56h-73l69-100Z" opacity=".96"/>
+</svg>
