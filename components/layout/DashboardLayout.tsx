@@ -487,11 +487,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-14px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
-        <div className="grid grid-cols-4 gap-1">
-          <MobileNavItem href="/dashboard" icon={<LayoutDashboard size={18} />} label="Inicio" active={pathname === '/dashboard'} />
+        <div className="grid grid-cols-5 gap-1">
+          <MobileNavItem href={workspace?.is_platform_admin ? '/platform' : '/dashboard'} icon={<LayoutDashboard size={18} />} label={workspace?.is_platform_admin ? 'Soporte' : 'Inicio'} active={pathname === (workspace?.is_platform_admin ? '/platform' : '/dashboard')} />
           <MobileNavItem href="/workflows" icon={<Inbox size={18} />} label="Bandeja" active={pathname?.startsWith('/workflows')} badge={inboxPendingCount} />
           <MobileNavItem href="/projects" icon={<FolderKanban size={18} />} label="Proyectos" active={pathname?.startsWith('/projects')} />
           <MobileNavItem href="/alerts" icon={<Bell size={18} />} label="Alertas" active={pathname?.startsWith('/alerts')} />
+          <MobileNavItem href="/tutorial" icon={<GraduationCap size={18} />} label="Aprender" active={pathname?.startsWith('/tutorial')} />
         </div>
       </nav>
 
