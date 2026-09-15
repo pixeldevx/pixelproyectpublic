@@ -1,3 +1,4 @@
+import { requireWorkspaceContext, workspaceErrorStatus } from '@/lib/workspaces/server';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -353,6 +354,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    await requireWorkspaceContext(request);
     const formData = await request.formData();
     const files = formData.getAll('files').filter((item): item is File => item instanceof File);
 
@@ -381,6 +383,6 @@ export async function POST(request: Request) {
     return json({ receipts });
   } catch (error: any) {
     console.error('Error in receipt analysis endpoint:', error);
-    return json({ error: error?.message || 'No se pudo analizar el lote de soportes.' }, 500);
+    return json({ error: error?.message || 'No se pudo analizar el lote de soportes.' }, workspaceErrorStatus(error));
   }
 }

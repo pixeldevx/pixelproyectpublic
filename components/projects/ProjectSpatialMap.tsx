@@ -3029,6 +3029,7 @@ export function ProjectSpatialMap({
         setUploadProgressText(`Guardando geometría en Supabase (${formatBytes(chunks[0].file.size)})…`);
         const geoJsonRef = ref(storage, storagePath);
         await uploadBytesToSupabase(geoJsonRef, chunks[0].file);
+        storagePath = geoJsonRef.fullPath;
         uploadedStoragePaths.push(storagePath);
         downloadUrl = await getDownloadURL(geoJsonRef);
       } else {
@@ -3044,9 +3045,9 @@ export function ProjectSpatialMap({
             `Guardando fragmento ${index + 1} de ${chunks.length} en Supabase (${formatBytes(chunk.file.size)})…`
           );
           await uploadBytesToSupabase(chunkRef, chunk.file);
-          uploadedStoragePaths.push(chunkStoragePath);
+          uploadedStoragePaths.push(chunkRef.fullPath);
           manifestChunks.push({
-            storagePath: chunkStoragePath,
+            storagePath: chunkRef.fullPath,
             downloadUrl: await getDownloadURL(chunkRef),
             featureCount: chunk.featureCount,
             size: chunk.file.size,
@@ -3068,6 +3069,7 @@ export function ProjectSpatialMap({
         );
         setUploadProgressText("Finalizando el índice de la capa…");
         await uploadBytesToSupabase(manifestRef, manifestFile);
+        storagePath = manifestRef.fullPath;
         uploadedStoragePaths.push(storagePath);
         downloadUrl = await getDownloadURL(manifestRef);
       }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getWorkspaceServerClient, workspaceErrorStatus } from '@/lib/workspaces/server';
 import { getBootstrapAdminEmailSet } from '@/lib/bootstrap-admins';
 import {
   CONTRACTOR_ACCOUNT_STAGE_LABELS,
@@ -42,16 +42,7 @@ const getBearerToken = (request: NextRequest) => {
   return scheme?.toLowerCase() === 'bearer' ? token : '';
 };
 
-const getAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Falta configurar SUPABASE_SERVICE_ROLE_KEY en el entorno de Vercel.');
-  }
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-};
+const getAdminClient = getWorkspaceServerClient;
 
 const findUserProfile = async (supabase: AdminClient, userId: string, email: string) => {
   const { data: byId, error: byIdError } = await supabase
@@ -82,8 +73,8 @@ const ensureGlobalAdmin = async (supabase: AdminClient, token: string) => {
   const email = normalizeEmail(data.user.email);
   const profile = await findUserProfile(supabase, data.user.id, email);
   const role = profile?.data?.role || profile?.data?.systemRole;
-  if (!ADMIN_EMAILS.has(email) && role !== 'admin') {
-    return { error: json({ error: 'Solo el administrador global puede reasignar usuarios.' }, 403) };
+  if (!['owner', 'admin'].includes(supabase.workspace.role)) {
+    return { error: json({ error: 'Solo el administrador del espacio puede reasignar usuarios.' }, 403) };
   }
   return { user: data.user, email };
 };
@@ -455,7 +446,7 @@ const prepareAnalysis = async (
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient(request);
     const authResult = await ensureGlobalAdmin(supabase, getBearerToken(request));
     if ('error' in authResult) return authResult.error;
 
@@ -472,16 +463,17 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Error previewing user reassignment:', error);
     const message = error?.message || 'No fue posible analizar la reasignación.';
-    return json({ error: message }, message.includes('Selecciona') || message.includes('diferente') ? 400 : 500);
+    return json({ error: message }, message.includes('Selecciona') || message.includes('diferente') ? 400 : workspaceErrorStatus(error));
   }
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = getAdminClient();
+  let supabase: any;
   let operationId = crypto.randomUUID();
   let auditData: Record<string, any> | null = null;
 
   try {
+    supabase = await getAdminClient(request);
     const bearerToken = getBearerToken(request);
     const authResult = await ensureGlobalAdmin(supabase, bearerToken);
     if ('error' in authResult) return authResult.error;
@@ -647,6 +639,6 @@ export async function POST(request: NextRequest) {
         console.error('Error recording failed user reassignment:', auditError);
       }
     }
-    return json({ error: error?.message || 'No fue posible completar la reasignación.' }, 500);
+    return json({ error: error?.message || 'No fue posible completar la reasignación.' }, workspaceErrorStatus(error));
   }
 }

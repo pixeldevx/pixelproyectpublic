@@ -6,9 +6,11 @@ La idea central es simple: cada actividad, costo, activo, interacción y geometr
 
 > Guiño para quien siga construyendo: si algo parece grande, pártelo en pixeles. El producto entero nació así.
 
-Dominio previsto para la instancia pública independiente: `https://public.pixelprojects.com.co`.
+Instancia pública independiente: [public.pixelprojects.com.co](https://public.pixelprojects.com.co).
 
-Esta copia parte del código corporativo con un historial Git nuevo y una base de datos independiente. No contiene datos operativos ni cuentas del sistema corporativo. El acceso inicial se mantiene por invitación; el registro libre aún no forma parte de esta versión. Los archivos son privados y solo se descargan desde una sesión autorizada. Los avisos automáticos de anticipos y la limpieza programada están desactivados.
+Esta copia parte del código corporativo con un historial Git nuevo y una base de datos independiente. No contiene datos operativos ni cuentas del sistema corporativo. El registro público crea una prueba gratuita de 14 días: después de confirmar el correo, cada cuenta obtiene su propio espacio y organización. Todos los espacios comparten la misma base de datos con acceso separado por membresías y políticas de filas. Los archivos son privados. Los avisos automáticos de anticipos y la limpieza programada están desactivados.
+
+Consulta [espacios y pruebas gratuitas](docs/WORKSPACES.md) para conocer el aislamiento, las pruebas y los requisitos del correo de confirmación.
 
 ## Licencia
 
@@ -65,10 +67,11 @@ Más detalle en `docs/ARCHITECTURE.md`.
 
 ## Requisitos
 
-- Node.js 20 o superior.
+- Node.js 22 o superior.
 - Un proyecto de Supabase.
 - Un proyecto en Vercel o un entorno compatible con Next.js.
-- Resend si se desean correos transaccionales.
+- SMTP propio configurado en Supabase Auth para confirmar registros del público general; Resend es una opción.
+- Resend en las variables de la aplicación si se desean invitaciones y otros correos transaccionales.
 - Llaves VAPID si se desean notificaciones push PWA.
 
 ## Variables de entorno
@@ -93,7 +96,6 @@ Variables principales:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `NEXT_PUBLIC_SITE_URL`
 - `BOOTSTRAP_ADMIN_EMAILS`
-- `NEXT_PUBLIC_BOOTSTRAP_ADMIN_EMAILS`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL` (`Pixel Project <notificaciones@pixelprojects.com.co>` en Pixel)
 - `NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY`
@@ -109,7 +111,7 @@ Nunca publiques `.env.local` ni claves reales. El repositorio ignora `.env*` sal
 Supabase sigue siendo la fuente de metadatos, permisos y registros documentales. Los archivos pueden vivir en:
 
 - Supabase Storage, proveedor por defecto.
-- Amazon S3, activable con `DOCUMENT_STORAGE_PROVIDER=s3`.
+- Amazon S3, opcional solo para el administrador de plataforma; los espacios de prueba usan Supabase Storage privado.
 
 Cuando S3 está activo, el navegador pide a una API interna una URL temporal de carga. Las credenciales AWS nunca llegan al cliente. En el panel de **Configuración > Gestor documental**, el administrador global puede escoger proveedor, definir bucket/región/prefijo visible, límites de peso y ejecutar una prueba real de carga/lectura/borrado.
 
@@ -142,7 +144,7 @@ set app.bootstrap_admin_email = 'admin@example.com';
 set app.bootstrap_admin_name = 'Administrador Global';
 ```
 
-2. Ejecuta las migraciones:
+2. Ejecuta las migraciones históricas hasta `20260911130000_atomic_contractor_account_actions.sql`. La lista siguiente muestra solo las primeras:
 
 ```text
 0001_document_store.sql
@@ -157,8 +159,8 @@ set app.bootstrap_admin_name = 'Administrador Global';
 0010_project_spatial_annotations.sql
 ```
 
-3. Crea el usuario con el mismo correo en Supabase Auth y define su contraseña.
-4. Inicia sesión y crea organizaciones, usuarios, proyectos y permisos desde la app.
+3. Crea y confirma el usuario con el mismo correo en Supabase Auth antes de aplicar `20260915200621_workspace_trials.sql`. Esta migración exige exactamente un administrador existente y asigna los datos iniciales a su espacio activo; aborta si esa condición no se cumple.
+4. Aplica la migración de espacios. Configura el SMTP de Supabase Auth y prueba el registro desde `/register`.
 
 La capa principal de datos es `app_documents`, un almacén documental sobre Postgres. Las vistas `app_*` facilitan inspección, reportes y lectura desde Supabase sin cambiar el modelo de escritura.
 
@@ -185,7 +187,8 @@ npm run build
 4. Configura en Supabase Auth las URL de redirección:
    - `https://TU_DOMINIO/reset-password`
    - `https://TU_DOMINIO/login`
-5. Haz redeploy.
+5. Habilita registro público y confirmación de correo. Configura SMTP propio en Supabase Auth: el servicio integrado restringe los destinatarios y no sirve para registros públicos generales.
+6. Haz redeploy.
 
 ## Seguridad antes de publicar una instancia
 

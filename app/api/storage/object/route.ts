@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import { NextResponse } from 'next/server';
 import { createS3PresignedUrl } from '@/lib/storage/s3-presign';
 import { authorizeProjectStorageAction, getS3RuntimeConfig } from '@/lib/storage/server-config';
@@ -15,7 +16,10 @@ export async function DELETE(request: Request) {
       return json({ error: 'Ruta S3 inválida.' }, 400);
     }
 
-    const s3 = await getS3RuntimeConfig();
+    const s3 = await getS3RuntimeConfig(request);
+    if (!parsed.key.startsWith(`${s3.prefix}/`) || parsed.key.split('/').some((part) => part === '..' || part === '.')) {
+      return json({ error: 'El archivo no pertenece a tu espacio de trabajo.' }, 403);
+    }
     if (parsed.bucket !== s3.bucket) {
       return json({ error: 'El bucket del documento no corresponde al gestor configurado.' }, 403);
     }
@@ -50,6 +54,6 @@ export async function DELETE(request: Request) {
     return json({ ok: true });
   } catch (error: any) {
     console.error('Error deleting S3 object:', error);
-    return json({ error: error?.message || 'No se pudo eliminar el archivo.' }, 500);
+    return json({ error: error?.message || 'No se pudo eliminar el archivo.' }, workspaceErrorStatus(error));
   }
 }

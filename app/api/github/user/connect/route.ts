@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getServerSupabase();
+    const supabase = await getServerSupabase(request);
     const auth = await ensurePixelUser(request, supabase);
     if (auth.error) return auth.error;
     const configuration = getGithubPublicConfiguration();
@@ -37,6 +38,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: `https://github.com/login/oauth/authorize?${parameters.toString()}` });
   } catch (error: any) {
     console.error("GitHub identity start error:", error);
-    return NextResponse.json({ error: error?.message || "No se pudo iniciar la vinculación personal." }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "No se pudo iniciar la vinculación personal." }, { status: workspaceErrorStatus(error) });
   }
 }

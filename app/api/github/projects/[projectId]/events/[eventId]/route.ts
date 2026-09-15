@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { GithubEvidenceRole } from "@/lib/github/events";
@@ -59,6 +60,6 @@ export async function PATCH(
     return NextResponse.json({ ok: true, relationship });
   } catch (error: any) {
     console.error("GitHub evidence classification error:", error);
-    return NextResponse.json({ error: error?.message || "No se pudo clasificar el pull request." }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "No se pudo clasificar el pull request." }, { status: workspaceErrorStatus(error) });
   }
 }

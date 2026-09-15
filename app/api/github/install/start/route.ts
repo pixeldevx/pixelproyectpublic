@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
@@ -35,6 +36,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("GitHub installation start error:", error);
-    return NextResponse.json({ error: error?.message || "No se pudo iniciar la instalación de GitHub." }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "No se pudo iniciar la instalación de GitHub." }, { status: workspaceErrorStatus(error) });
   }
 }

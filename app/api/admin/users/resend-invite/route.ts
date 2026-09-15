@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getWorkspaceServerClient, workspaceErrorStatus } from '@/lib/workspaces/server';
 import { getBootstrapAdminEmailSet } from '@/lib/bootstrap-admins';
 import { getOrganizationIds, getPrimaryOrganizationId } from '@/lib/organizations';
 import { sendEmailWithResend } from '@/lib/email/resend';
@@ -7,7 +7,6 @@ import {
   buildUserAccessEmailHtml,
   buildUserAccessSubject,
   buildUserAccessText,
-  getOrganizationAccessLabel,
   getUserAccessRoleLabel,
   type UserAccessEmailMode,
 } from '@/lib/email/user-access-template';
@@ -28,7 +27,7 @@ type AppDocumentRow = {
 };
 
 const json = (body: Record<string, any>, status = 200) =>
-  NextResponse.json(body, { status });
+  NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
 
 const normalizeEmail = (value: unknown) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -81,21 +80,7 @@ const getAppUrlFromRedirect = (redirectTo: string) => {
   }
 };
 
-const getAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Falta configurar SUPABASE_SERVICE_ROLE_KEY en el entorno de Vercel.');
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-};
+const getAdminClient = getWorkspaceServerClient;
 
 const findDocumentsByEmail = async (
   supabase: AdminClient,
@@ -159,10 +144,10 @@ const ensureGlobalAdmin = async (
   const requesterEmail = normalizeEmail(data.user.email);
   const profile = await findRequesterProfile(supabase, data.user.id, requesterEmail);
   const profileRole = profile?.data?.role || profile?.data?.systemRole;
-  const isGlobalAdmin = ADMIN_EMAILS.has(requesterEmail) || profileRole === 'admin';
+  const isGlobalAdmin = ['owner', 'admin'].includes(supabase.workspace.role);
 
   if (!isGlobalAdmin) {
-    return { error: json({ error: 'Solo el administrador global puede reenviar invitaciones.' }, 403) };
+    return { error: json({ error: 'Solo el administrador del espacio puede reenviar invitaciones.' }, 403) };
   }
 
   return { user: data.user, email: requesterEmail };
@@ -341,7 +326,7 @@ const sendUserAccessEmail = async ({
     recipientEmail: email,
     invitedBy,
     roleLabel: getUserAccessRoleLabel(role),
-    organizationLabel: role === 'admin' ? 'Acceso global' : getOrganizationAccessLabel(organizationIds),
+    organizationLabel: 'Tu espacio de trabajo',
     mode,
   };
 
@@ -351,10 +336,6 @@ const sendUserAccessEmail = async ({
     html: buildUserAccessEmailHtml(emailData),
     text: buildUserAccessText(emailData),
   });
-
-  if (result.skipped) {
-    throw new Error('Falta configurar RESEND_API_KEY para reenviar invitaciones personalizadas.');
-  }
 
   return result;
 };
@@ -368,7 +349,7 @@ const sendAccessLink = async (
 ) => {
   try {
     const actionUrl = await generateAccessLink(supabase, email, metadata, redirectTo, 'invite');
-    await sendUserAccessEmail({
+    const delivery = await sendUserAccessEmail({
       email,
       metadata,
       invitedBy,
@@ -376,7 +357,7 @@ const sendAccessLink = async (
       actionUrl,
       mode: 'invite',
     });
-    return 'invite_sent' as const;
+    return { inviteStatus: delivery.skipped ? 'link_ready' as const : 'invite_sent' as const, delivery: delivery.skipped ? 'manual' : 'email', invitationUrl: delivery.skipped ? actionUrl : undefined };
   } catch (error: any) {
     const alreadyExists = /already|registered|exists/i.test(error?.message || '');
     if (!alreadyExists) {
@@ -384,7 +365,7 @@ const sendAccessLink = async (
     }
 
     const actionUrl = await generateAccessLink(supabase, email, metadata, redirectTo, 'recovery');
-    await sendUserAccessEmail({
+    const delivery = await sendUserAccessEmail({
       email,
       metadata,
       invitedBy,
@@ -393,7 +374,7 @@ const sendAccessLink = async (
       mode: 'recovery',
     });
 
-    return 'recovery_sent' as const;
+    return { inviteStatus: delivery.skipped ? 'link_ready' as const : 'recovery_sent' as const, delivery: delivery.skipped ? 'manual' : 'email', invitationUrl: delivery.skipped ? actionUrl : undefined };
   }
 };
 
@@ -402,7 +383,7 @@ const updateProfileDocuments = async (
   rows: AppDocumentRow[],
   authUser: any,
   email: string,
-  inviteStatus: 'invite_sent' | 'recovery_sent',
+  inviteStatus: 'invite_sent' | 'recovery_sent' | 'link_ready',
   invitedBy: string,
   now: string
 ) => {
@@ -412,7 +393,7 @@ const updateProfileDocuments = async (
     email,
     inviteStatus,
     inviteResentAt: now,
-    lastInvitationSentAt: now,
+    lastInvitationSentAt: inviteStatus === 'link_ready' ? null : now,
     lastInvitedBy: invitedBy,
     updatedAt: now,
     ...(inviteStatus === 'recovery_sent' ? { recoverySentAt: now } : {}),
@@ -465,7 +446,7 @@ const updateProfileDocuments = async (
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient(request);
     const authResult = await ensureGlobalAdmin(supabase, getBearerToken(request));
     if ('error' in authResult) return authResult.error;
 
@@ -503,7 +484,7 @@ export async function POST(request: NextRequest) {
     );
     if (updateError) throw updateError;
 
-    const inviteStatus = await sendAccessLink(
+    const delivery = await sendAccessLink(
       supabase,
       targetEmail,
       metadata,
@@ -516,7 +497,7 @@ export async function POST(request: NextRequest) {
       rows,
       authUser,
       targetEmail,
-      inviteStatus,
+      delivery.inviteStatus,
       authResult.email,
       now
     );
@@ -524,15 +505,17 @@ export async function POST(request: NextRequest) {
     return json({
       userId: authUser.id,
       email: targetEmail,
-      inviteStatus,
+      inviteStatus: delivery.inviteStatus,
+      delivery: delivery.delivery,
+      invitationUrl: delivery.invitationUrl,
       inviteResentAt: now,
-      message:
-        inviteStatus === 'invite_sent'
+      message: delivery.delivery === 'manual' ? 'Enlace preparado. El correo automático está pendiente; compártelo con el usuario.' :
+        delivery.inviteStatus === 'invite_sent'
           ? 'Invitación reenviada correctamente.'
           : 'Enlace de acceso reenviado correctamente.',
     });
   } catch (error: any) {
     console.error('Error resending user invite:', error);
-    return json({ error: error.message || 'No fue posible reenviar la invitación.' }, 500);
+    return json({ error: error.message || 'No fue posible reenviar la invitación.' }, workspaceErrorStatus(error));
   }
 }

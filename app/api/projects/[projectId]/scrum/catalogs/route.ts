@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { ensureProjectAccess, listDocuments, readDocument, writeDocument } from '@/lib/github/server';
@@ -174,7 +175,7 @@ export async function POST(
     return json({ entry });
   } catch (error: any) {
     console.error('Error creating Scrum story catalog entry:', error);
-    return json({ error: error?.message || 'No se pudo actualizar el catálogo del proyecto.' }, 500);
+    return json({ error: error?.message || 'No se pudo actualizar el catálogo del proyecto.' }, workspaceErrorStatus(error));
   }
 }
 
@@ -238,6 +239,6 @@ export async function PATCH(
     return json({ entry });
   } catch (error: any) {
     console.error('Error changing Scrum story catalog status:', error);
-    return json({ error: error?.message || 'No se pudo actualizar el catálogo del proyecto.' }, 500);
+    return json({ error: error?.message || 'No se pudo actualizar el catálogo del proyecto.' }, workspaceErrorStatus(error));
   }
 }

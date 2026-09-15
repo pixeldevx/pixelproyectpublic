@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import { NextResponse } from 'next/server';
 import { createS3PresignedUrl } from '@/lib/storage/s3-presign';
 import {
@@ -23,7 +24,7 @@ const json = (body: Record<string, any>, status = 200) => NextResponse.json(body
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as UploadRequest;
-    const settings = await getDocumentStorageSettings();
+    const settings = await getDocumentStorageSettings(request);
 
     if (settings.provider !== 's3') {
       return json({ provider: 'supabase' });
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
       return json({ error: `Tipo de archivo no permitido: ${body.contentType}.` }, 415);
     }
 
-    const s3 = await getS3RuntimeConfig();
+    const s3 = await getS3RuntimeConfig(request);
     const key = buildS3ObjectKey(s3.prefix, cleanPath);
     if (cleanPath.split('/').includes('projects')) {
       const authorization = await authorizeProjectStorageAction({
@@ -86,6 +87,6 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error('Error creating storage upload URL:', error);
-    return json({ error: error?.message || 'No se pudo preparar la carga del archivo.' }, 500);
+    return json({ error: error?.message || 'No se pudo preparar la carga del archivo.' }, workspaceErrorStatus(error));
   }
 }

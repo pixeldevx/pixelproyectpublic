@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { ensurePixelUser, getServerSupabase } from '@/lib/github/server';
@@ -169,7 +170,7 @@ const loadDeliveryRows = async (
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getServerSupabase();
+    const supabase = await getServerSupabase(request);
     const auth = await ensurePixelUser(request, supabase);
     if (auth.error) return auth.error;
     const accessScope = await loadActorProjectScope(supabase, auth.actor);
@@ -236,13 +237,13 @@ export async function GET(request: NextRequest) {
     return json({ alerts });
   } catch (error: any) {
     console.error('Error loading advance request alerts:', error);
-    return json({ error: 'No fue posible cargar las alertas de anticipos.' }, 500);
+    return json({ error: 'No fue posible cargar las alertas de anticipos.' }, workspaceErrorStatus(error));
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = getServerSupabase();
+    const supabase = await getServerSupabase(request);
     const auth = await ensurePixelUser(request, supabase);
     if (auth.error) return auth.error;
     const body = await parseBody(request);
@@ -273,6 +274,6 @@ export async function PATCH(request: NextRequest) {
     return json({ ok: true, status: 'read', readAt });
   } catch (error: any) {
     console.error('Error marking advance request alert as read:', error);
-    return json({ error: 'No fue posible actualizar la alerta.' }, 500);
+    return json({ error: 'No fue posible actualizar la alerta.' }, workspaceErrorStatus(error));
   }
 }

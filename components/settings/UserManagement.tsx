@@ -5,8 +5,8 @@ import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, ArrowRightLeft, CheckCircle2, Plus, RefreshCw, Send, Shield, Trash2, User as UserIcon } from 'lucide-react';
-import { collection, query, onSnapshot, doc, updateDoc, setDoc, getDocs, where } from '@/lib/supabase/document-store';
+import { AlertTriangle, ArrowRightLeft, CheckCircle2, Copy, X, Plus, RefreshCw, Send, Shield, Trash2, User as UserIcon } from 'lucide-react';
+import { collection, query, onSnapshot, where } from '@/lib/supabase/document-store';
 import { db } from '@/lib/backend';
 import { toast } from 'sonner';
 import { uploadProfilePicture } from '@/lib/storage-utils';
@@ -122,6 +122,7 @@ export function UserManagement() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedOrganizationIds, setSelectedOrganizationIds] = useState<string[]>([]);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [manualInvitation, setManualInvitation] = useState<{ email: string; url: string } | null>(null);
   const [resendingUserId, setResendingUserId] = useState<string | null>(null);
   const [isSyncingEmail, setIsSyncingEmail] = useState(false);
   const [reassignmentSource, setReassignmentSource] = useState<any>(null);
@@ -134,7 +135,7 @@ export function UserManagement() {
   const [isExecutingReassignment, setIsExecutingReassignment] = useState(false);
 
   const systemRoles = [
-    { id: 'admin', name: 'Administrador Global' },
+    { id: 'admin', name: 'Administrador del espacio' },
     { id: 'org_admin', name: 'Administrador de Organización' },
     { id: 'manager', name: 'Gerente' },
     { id: 'coordinador', name: 'Coordinador' },
@@ -245,7 +246,7 @@ export function UserManagement() {
       setUserEmail('');
       setFormSystemRole('user');
       setUserName('');
-      setSelectedOrganizationIds(currentUserRole === 'org_admin' ? managedOrganizationIds : []);
+      setSelectedOrganizationIds(managedOrganizationIds);
       setPhotoPreview(null);
       setPhotoFile(null);
       if (projectRoles.length > 0) {
@@ -353,7 +354,8 @@ export function UserManagement() {
         throw new Error(result.error || 'No fue posible reenviar la invitación.');
       }
 
-      toast.success(result.message || 'Invitación reenviada.');
+      if (result.delivery === 'manual' && result.invitationUrl) setManualInvitation({ email: targetUser.email, url: result.invitationUrl });
+      toast.success(result.message || 'Invitación preparada.');
       await loadAuthUsers();
     } catch (error) {
       console.error("Error resending invitation:", error);
@@ -466,7 +468,7 @@ export function UserManagement() {
     }
 
     if (currentUserRole !== 'admin') {
-      throw new Error('Solo el administrador global puede cambiar el correo de acceso.');
+      throw new Error('Solo el administrador del espacio puede cambiar el correo de acceso.');
     }
 
     const confirmed = window.confirm(
@@ -508,6 +510,18 @@ export function UserManagement() {
     }
   };
 
+  const saveWorkspaceUserProfile = async (payload: Record<string, unknown>) => {
+    const token = await getAccessToken();
+    const response = await fetchWithTimeout('/api/admin/users/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    }, 'La actualización tardó demasiado. Refresca la lista antes de volver a intentar.');
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'No se pudo actualizar el perfil.');
+    return result;
+  };
+
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userEmail.trim()) return;
@@ -515,9 +529,7 @@ export function UserManagement() {
     setIsUploading(true);
     try {
       let normalizedEmail = userEmail.trim().toLowerCase();
-      const cleanOrganizationIds = formSystemRole === 'admin'
-        ? []
-        : Array.from(new Set(selectedOrganizationIds.filter(Boolean)));
+      const cleanOrganizationIds = Array.from(new Set([userOrganizationId, ...selectedOrganizationIds].filter((id): id is string => Boolean(id))));
       const primaryOrganizationId = getPrimaryOrganizationId({ organizationIds: cleanOrganizationIds });
 
       if (formSystemRole !== 'admin' && cleanOrganizationIds.length === 0) {
@@ -529,7 +541,6 @@ export function UserManagement() {
       let uploadedPhotoURL = editingUser?.photoURL || null;
 
       if (editingUser) {
-        const originalEmail = String(editingUser.email || '').trim().toLowerCase();
         normalizedEmail = await syncUserEmailIfNeeded(editingUser, normalizedEmail);
 
         if (photoFile) {
@@ -540,48 +551,13 @@ export function UserManagement() {
           );
         }
 
-        await setDoc(doc(db, 'users', editingUser.id), {
-          uid: editingUser.id,
-          authUserId: editingUser.id,
-          role: formSystemRole,
-          email: normalizedEmail,
+        await saveWorkspaceUserProfile({
+          userId: editingUser.id,
           displayName: userName || normalizedEmail.split('@')[0],
+          systemRole: formSystemRole,
+          organizationIds: cleanOrganizationIds,
           ...(uploadedPhotoURL && { photoURL: uploadedPhotoURL }),
-          ...(currentUserRole === 'admin'
-            ? {
-                organizationId: primaryOrganizationId,
-                organizationIds: cleanOrganizationIds,
-              }
-            : {})
-        }, { merge: true });
-
-        // Also update team_members collection if the user exists there
-        const teamMemberDocs = new Map<string, any>();
-        const teamQueries = [
-          query(collection(db, 'team_members'), where('authUserId', '==', editingUser.id)),
-          ...(originalEmail ? [query(collection(db, 'team_members'), where('email', '==', originalEmail))] : []),
-          query(collection(db, 'team_members'), where('email', '==', normalizedEmail)),
-        ];
-
-        for (const tmQuery of teamQueries) {
-          const tmSnapshot = await getDocs(tmQuery);
-          tmSnapshot.docs.forEach((tmDoc) => teamMemberDocs.set(tmDoc.id, tmDoc));
-        }
-
-        for (const tmDoc of teamMemberDocs.values()) {
-          await updateDoc(doc(db, 'team_members', tmDoc.id), {
-            email: normalizedEmail,
-            name: userName || normalizedEmail.split('@')[0],
-            authUserId: editingUser.id,
-            ...(uploadedPhotoURL && { photoURL: uploadedPhotoURL }),
-            ...(currentUserRole === 'admin'
-              ? {
-                  organizationId: primaryOrganizationId,
-                  organizationIds: cleanOrganizationIds,
-                }
-              : {})
-          });
-        }
+        });
 
         toast.success("Usuario actualizado exitosamente.");
         setIsModalOpen(false);
@@ -590,7 +566,7 @@ export function UserManagement() {
         }
       } else {
         if (currentUserRole !== 'admin') {
-          throw new Error('Solo el administrador global puede invitar usuarios.');
+          throw new Error('Solo el administrador del espacio puede invitar usuarios.');
         }
 
         const selectedProjectRole = projectRoles.find(r => r.id === projectRoleId);
@@ -606,7 +582,8 @@ export function UserManagement() {
           organizationIds: cleanOrganizationIds,
         });
 
-        toast.success(inviteResult.message || "Usuario creado e invitación enviada.");
+        if (inviteResult.delivery === 'manual' && inviteResult.invitationUrl) setManualInvitation({ email: normalizedEmail, url: inviteResult.invitationUrl });
+        toast.success(inviteResult.message || "Invitación preparada.");
         setIsModalOpen(false);
         setIsUploading(false);
 
@@ -619,19 +596,11 @@ export function UserManagement() {
                 'La invitación fue enviada, pero la foto tardó demasiado en subir.'
               );
 
-              await setDoc(doc(db, 'users', inviteResult.userId), {
+              await saveWorkspaceUserProfile({
+                userId: inviteResult.userId,
                 photoURL: invitedPhotoURL,
-                updatedAt: new Date().toISOString(),
-              }, { merge: true });
+              });
 
-              const tmQuery = query(collection(db, 'team_members'), where('email', '==', normalizedEmail));
-              const tmSnapshot = await getDocs(tmQuery);
-              for (const tmDoc of tmSnapshot.docs) {
-                await updateDoc(doc(db, 'team_members', tmDoc.id), {
-                  photoURL: invitedPhotoURL,
-                  updatedAt: new Date().toISOString(),
-                });
-              }
             } catch (photoError) {
               console.error("Error uploading invited user photo:", photoError);
               toast.warning(photoError instanceof Error ? photoError.message : 'Usuario invitado, pero no se pudo subir la foto.');
@@ -674,6 +643,8 @@ export function UserManagement() {
     switch (u.authStatus) {
       case 'confirmed':
         return { label: 'Confirmado', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+      case 'link_ready':
+        return { label: 'Enlace pendiente de compartir', className: 'bg-orange-50 text-orange-700 border-orange-200' };
       case 'invite_sent':
         return { label: 'Invitación enviada', className: 'bg-amber-50 text-amber-700 border-amber-200' };
       case 'recovery_sent':
@@ -687,11 +658,17 @@ export function UserManagement() {
 
   return (
     <Card>
+      {manualInvitation && (
+        <div className="m-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-bold text-amber-950">Invitación lista para compartir</h3><p className="mt-2 text-sm leading-6 text-amber-900">El correo automático está pendiente. Comparte este enlace únicamente con <strong>{manualInvitation.email}</strong> para que configure su contraseña y entre a tu espacio.</p></div><button type="button" onClick={() => setManualInvitation(null)} className="p-1 text-amber-700" aria-label="Cerrar invitación"><X size={18} /></button></div>
+          <div className="mt-3 flex gap-2"><input readOnly aria-label="Enlace de invitación" value={manualInvitation.url} className="min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-3 text-xs text-slate-600" /><Button type="button" onClick={async () => { try { await navigator.clipboard.writeText(manualInvitation.url); toast.success('Enlace copiado.'); } catch { toast.error('No pudimos copiarlo. Selecciona el enlace y cópialo.'); } }} className="bg-amber-900 text-white hover:bg-amber-950"><Copy size={15} className="mr-2" /> Copiar</Button></div>
+        </div>
+      )}
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Usuarios del Sistema</CardTitle>
+          <CardTitle>Usuarios del espacio</CardTitle>
           <CardDescription>
-            Gestiona los niveles de acceso y roles del sistema para los usuarios.
+            Gestiona las personas y los roles de tu organización. Las invitaciones dan acceso únicamente a este espacio.
           </CardDescription>
         </div>
         {currentUserRole === 'admin' && (
@@ -760,7 +737,7 @@ export function UserManagement() {
                     </span>
                   </TableCell>
                   <TableCell className="text-slate-500 text-sm">
-                    {formatDate(u.lastInvitationSentAt || u.inviteResentAt || u.invitedAt || u.confirmationSentAt || u.recoverySentAt)}
+                    {u.inviteStatus === 'link_ready' ? 'Pendiente' : formatDate(u.lastInvitationSentAt || u.inviteResentAt || u.invitedAt || u.confirmationSentAt || u.recoverySentAt)}
                   </TableCell>
                   <TableCell className="text-slate-500 text-sm">
                     {u.lastSignInAt || u.lastLoginAt ? formatDate(u.lastSignInAt || u.lastLoginAt) : 'Nunca'}
@@ -871,7 +848,7 @@ export function UserManagement() {
                     <p className="text-xs text-slate-500 mt-1">
                       {currentUserRole === 'admin'
                         ? 'Si cambias este correo se actualiza el inicio de sesión en Supabase Auth y las asignaciones por email.'
-                        : 'Solo el administrador global puede cambiar el correo de acceso.'}
+                        : 'Solo el administrador del espacio puede cambiar el correo de acceso.'}
                     </p>
                   )}
                 </div>

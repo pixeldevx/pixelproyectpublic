@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getWorkspaceServerClient, workspaceErrorStatus } from '@/lib/workspaces/server';
 import { getBootstrapAdminEmailSet } from '@/lib/bootstrap-admins';
 import { getOrganizationIds } from '@/lib/organizations';
 import { normalizeRolePermissions, resolveRolePermissions } from '@/lib/permissions';
@@ -49,12 +49,7 @@ const getBearerToken = (request: NextRequest) => {
   return scheme?.toLowerCase() === 'bearer' ? token : '';
 };
 
-const getAdminClient = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) throw new Error('Falta configurar Supabase en el servidor.');
-  return createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-};
+const getAdminClient = getWorkspaceServerClient;
 
 const getDocumentRow = async (supabase: any, collectionPath: string, docId: string) => {
   const { data, error } = await supabase
@@ -223,7 +218,7 @@ const postAssignmentNotification = async (
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient(request);
     const bearerToken = getBearerToken(request);
     const { data: authData, error: authError } = await supabase.auth.getUser(bearerToken);
     const authUser = authData?.user;
@@ -261,7 +256,7 @@ export async function POST(request: NextRequest) {
       exactTeamProfile?.data?.systemRole || exactTeamProfile?.data?.userRole || exactTeamProfile?.data?.role ||
       'user'
     );
-    const isGlobalAdmin = ADMIN_EMAILS.has(email) || role === 'admin';
+    const isGlobalAdmin = ['owner', 'admin'].includes(supabase.workspace.role);
     const normalizedPermissionConfig = normalizeRolePermissions(permissionRow?.data);
     const permissions = resolveRolePermissions(normalizedPermissionConfig, role);
     const identities = actorIdentitySet(profiles, authUser.id, email);
@@ -432,6 +427,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error updating contractor account approval route:', error);
-    return json({ error: error?.message || 'No fue posible actualizar la ruta de aprobación.', retryable: true }, 500);
+    return json({ error: error?.message || 'No fue posible actualizar la ruta de aprobación.', retryable: true }, workspaceErrorStatus(error));
   }
 }

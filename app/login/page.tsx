@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { WorkspaceAccessState } from '@/components/auth/WorkspaceAccessState';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, loading, accessError, loginWithEmail, requestPasswordReset, logout } = useAuth();
+  const { user, workspace, workspaceExpired, loading, accessError, loginWithEmail, requestPasswordReset, logout } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
@@ -19,10 +20,10 @@ export default function LoginPage() {
   const [showLoadingRecovery, setShowLoadingRecovery] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && workspace && !workspaceExpired) {
       router.replace('/dashboard');
     }
-  }, [loading, router, user]);
+  }, [loading, router, user, workspace, workspaceExpired]);
 
   useEffect(() => {
     if (!loading) {
@@ -59,13 +60,13 @@ export default function LoginPage() {
       ) {
         setAuthError('Correo o contraseña incorrectos.');
       } else if (error.code === 'email_not_confirmed' || /email not confirmed/i.test(message)) {
-        setAuthError('El correo todavía no está confirmado en Supabase.');
+        setAuthError('Confirma tu correo con el enlace que te enviamos antes de iniciar sesión. Revisa también la carpeta de spam.');
       } else if (error.code === 'auth/email-already-in-use' || /already registered/i.test(message)) {
         setAuthError('El correo ya está registrado. Por favor, inicia sesión.');
       } else if (error.code === 'auth/weak-password') {
         setAuthError('La contraseña debe tener al menos 6 caracteres.');
       } else if (error.code === 'auth/operation-not-allowed') {
-        setAuthError('El inicio de sesión con correo no está habilitado en Supabase. Por favor, habilítalo en la consola de Supabase.');
+        setAuthError('El acceso no está disponible en este momento. Inténtalo de nuevo más tarde.');
       } else {
         setAuthError(error.message || 'Ocurrió un error en la autenticación.');
       }
@@ -74,7 +75,9 @@ export default function LoginPage() {
     }
   };
 
-  if (loading || user) {
+  if (user) return <WorkspaceAccessState />;
+
+  if (loading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 px-4">
         <div className="space-y-4 text-center">
@@ -140,12 +143,15 @@ export default function LoginPage() {
 
         <form onSubmit={handleEmailAuth} className="mb-6 space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Correo Electronico</label>
+            <label htmlFor="login-email" className="mb-1 block text-sm font-medium text-slate-700">Correo electrónico</label>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                 <Mail className="h-5 w-5 text-slate-400" />
               </div>
               <input
+                id="login-email"
+                name="email"
+                autoComplete="email"
                 type="email"
                 required
                 value={email}
@@ -158,12 +164,15 @@ export default function LoginPage() {
 
           {!isRecoveringPassword && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Contraseña</label>
+              <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-slate-700">Contraseña</label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                   <Lock className="h-5 w-5 text-slate-400" />
                 </div>
                 <input
+                  id="login-password"
+                  name="password"
+                  autoComplete="current-password"
                   type="password"
                   required
                   value={password}
@@ -198,6 +207,9 @@ export default function LoginPage() {
             {isRecoveringPassword ? 'Inicia sesión' : 'Enviar enlace'}
           </button>
         </div>
+        <p className="mt-6 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
+          ¿Nuevo en Pixel? <Link href="/register" className="font-semibold text-indigo-600 hover:text-indigo-800">Crea tu espacio gratis</Link>
+        </p>
       </div>
     </div>
   );

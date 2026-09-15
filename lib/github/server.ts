@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getBearerToken, getServerSupabase } from "@/lib/license-server";
+import { getBearerToken } from "@/lib/license-server";
+import { getWorkspaceServerClient, getWorkspaceClientForVerifiedState } from "@/lib/workspaces/server";
 
-export { getServerSupabase };
+export const getServerSupabase = getWorkspaceServerClient;
 
 export const GITHUB_DOCUMENTS_TABLE = "app_documents";
 export const GITHUB_API_URL = "https://api.github.com";
@@ -22,6 +23,7 @@ export type GithubStatePurpose = "installation" | "identity";
 
 export type GithubStatePayload = {
   purpose: GithubStatePurpose;
+  workspaceId: string;
   nonce: string;
   userId: string;
   email: string;
@@ -59,7 +61,8 @@ const getProfile = async (supabase: any, userId: string, email: string) => {
   return row ? { ...(row.data || {}), id: row.doc_id } : null;
 };
 
-export const ensurePixelUser = async (request: NextRequest, supabase = getServerSupabase()) => {
+export const ensurePixelUser = async (request: NextRequest, supabase?: any) => {
+  supabase ||= await getServerSupabase(request);
   const token = getBearerToken(request);
   if (!token) return { error: json({ error: "Sesión no encontrada." }, 401) };
 
@@ -196,7 +199,7 @@ export const ensureProjectAccess = async (
   projectId: string,
   options: { manage?: boolean } = {},
 ) => {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase(request);
   const auth = await ensurePixelUser(request, supabase);
   if (auth.error) return { error: auth.error };
   const project = await readDocument(supabase, "projects", projectId);
@@ -309,11 +312,12 @@ const encodeState = (payload: GithubStatePayload) => {
 
 export const createGithubState = async (
   supabase: any,
-  payload: Omit<GithubStatePayload, "nonce" | "expiresAt">,
+  payload: Omit<GithubStatePayload, "nonce" | "expiresAt" | "workspaceId">,
 ) => {
   const nonce = crypto.randomUUID();
   const complete: GithubStatePayload = {
     ...payload,
+    workspaceId: supabase.workspace.workspaceId,
     nonce,
     expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
   };
@@ -321,7 +325,7 @@ export const createGithubState = async (
   return encodeState(complete);
 };
 
-export const consumeGithubState = async (supabase: any, state: string, purpose: GithubStatePurpose) => {
+const verifyGithubState = (state: string, purpose: GithubStatePurpose) => {
   const [encoded, signature] = String(state || "").split(".");
   if (!encoded || !signature) throw new Error("El estado de GitHub no es válido.");
   const expected = crypto
@@ -337,6 +341,18 @@ export const consumeGithubState = async (supabase: any, state: string, purpose: 
   if (payload.purpose !== purpose || new Date(payload.expiresAt).getTime() < Date.now()) {
     throw new Error("La autorización de GitHub expiró. Iníciala nuevamente.");
   }
+  if (!payload.workspaceId || !Number.isFinite(Date.parse(payload.expiresAt))) throw new Error("La autorización de GitHub no es válida.");
+  return payload;
+};
+
+export const getGithubCallbackClient = async (state: string, purpose: GithubStatePurpose) => {
+  const payload = verifyGithubState(state, purpose);
+  return getWorkspaceClientForVerifiedState(payload.userId, payload.workspaceId);
+};
+
+export const consumeGithubState = async (supabase: any, state: string, purpose: GithubStatePurpose) => {
+  const payload = verifyGithubState(state, purpose);
+  if (payload.workspaceId !== supabase.workspace.workspaceId) throw new Error("La autorización no pertenece a este espacio.");
   const stored = await readDocument(supabase, "github_oauth_states", payload.nonce);
   if (!stored || stored.purpose !== purpose || stored.userId !== payload.userId) {
     throw new Error("La autorización de GitHub ya fue utilizada o no existe.");

@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createS3PresignedUrl } from '@/lib/storage/s3-presign';
 import { authorizeProjectStorageAction, getAuthenticatedUser, getS3RuntimeConfig, isDocumentStoragePathRestricted } from '@/lib/storage/server-config';
@@ -17,7 +18,10 @@ export async function POST(request: Request) {
       return json({ error: 'Ruta S3 inválida.' }, 400);
     }
 
-    const s3 = await getS3RuntimeConfig();
+    const s3 = await getS3RuntimeConfig(request);
+    if (!parsed.key.startsWith(`${s3.prefix}/`) || parsed.key.split('/').some((part) => part === '..' || part === '.')) {
+      return json({ error: 'El archivo no pertenece a tu espacio de trabajo.' }, 403);
+    }
     if (parsed.bucket !== s3.bucket) {
       return json({ error: 'El bucket del documento no corresponde al gestor configurado.' }, 403);
     }
@@ -65,35 +69,10 @@ export async function POST(request: Request) {
     return json({ url: downloadUrl, expiresInSeconds: 300 });
   } catch (error: any) {
     console.error('Error creating storage download URL:', error);
-    return json({ error: error?.message || 'No se pudo abrir el documento.' }, 500);
+    return json({ error: error?.message || 'No se pudo abrir el documento.' }, workspaceErrorStatus(error));
   }
 }
 
-export async function GET(request: NextRequest) {
-  const path = request.nextUrl.searchParams.get('path') || '';
-  const parsed = parseS3StoragePath(path);
-  if (!parsed) return json({ error: 'Ruta S3 inválida.' }, 400);
-
-  try {
-    if (parsed.key.split('/').includes('profile_signatures')) {
-      return json({ error: 'Las firmas solo pueden abrirse desde una sesión autenticada de Pixel.' }, 401);
-    }
-    if (await isDocumentStoragePathRestricted(path)) {
-      return json({ error: 'Por seguridad, abre este documento desde Pixel Project.' }, 401);
-    }
-    const s3 = await getS3RuntimeConfig();
-    if (parsed.bucket !== s3.bucket) return json({ error: 'Bucket inválido.' }, 403);
-    return NextResponse.redirect(createS3PresignedUrl({
-      method: 'GET',
-      bucket: s3.bucket,
-      key: parsed.key,
-      region: s3.region,
-      accessKeyId: s3.accessKeyId,
-      secretAccessKey: s3.secretAccessKey,
-      sessionToken: s3.sessionToken,
-      expiresInSeconds: 300,
-    }));
-  } catch (error: any) {
-    return json({ error: error?.message || 'No se pudo abrir el archivo.' }, 500);
-  }
+export async function GET(_request: NextRequest) {
+  return json({ error: 'Abre el archivo desde tu sesión de Pixel.' }, 401);
 }

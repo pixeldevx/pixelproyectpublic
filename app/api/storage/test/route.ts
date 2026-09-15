@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import { NextResponse } from 'next/server';
 import { getBootstrapAdminEmailSet } from '@/lib/bootstrap-admins';
 import { createS3PresignedUrl } from '@/lib/storage/s3-presign';
@@ -26,34 +27,12 @@ const ensureGlobalAdmin = async (request: Request) => {
   const email = normalizeEmail(user.email);
   if (BOOTSTRAP_ADMINS.has(email)) return true;
 
-  const supabase = getServerSupabaseClient();
-  if (!supabase) return false;
-
-  const { data, error } = await supabase
-    .from(DOCUMENTS_TABLE)
-    .select('data')
-    .eq('collection_path', 'users')
-    .eq('doc_id', user.id)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (data?.data?.role === 'admin' || data?.data?.systemRole === 'admin') return true;
-
-  const { data: byEmail, error: byEmailError } = await supabase
-    .from(DOCUMENTS_TABLE)
-    .select('data')
-    .eq('collection_path', 'users')
-    .eq('data->>email', email)
-    .limit(1);
-
-  if (byEmailError) throw byEmailError;
-  const profile = (byEmail || [])[0]?.data;
-  return profile?.role === 'admin' || profile?.systemRole === 'admin';
+  return false;
 };
 
 export async function GET(request: Request) {
   try {
-    const status = await getStorageConfigStatus();
+    const status = await getStorageConfigStatus(request);
     const isAdmin = await ensureGlobalAdmin(request);
 
     if (!isAdmin) {
@@ -77,7 +56,7 @@ export async function GET(request: Request) {
     });
   } catch (error: any) {
     console.error('Error reading storage status:', error);
-    return json({ error: error?.message || 'No se pudo leer el estado del gestor documental.' }, 500);
+    return json({ error: error?.message || 'No se pudo leer el estado del gestor documental.' }, workspaceErrorStatus(error));
   }
 }
 
@@ -88,7 +67,7 @@ export async function POST(request: Request) {
       return json({ error: 'Solo el administrador global puede probar el gestor documental.' }, 403);
     }
 
-    const status = await getStorageConfigStatus();
+    const status = await getStorageConfigStatus(request);
     if (status.provider !== 's3') {
       return json({
         ok: true,
@@ -106,7 +85,7 @@ export async function POST(request: Request) {
       }, 400);
     }
 
-    const s3 = await getS3RuntimeConfig();
+    const s3 = await getS3RuntimeConfig(request);
     const key = buildS3ObjectKey(
       s3.prefix,
       `diagnostics/pixel-storage-test-${Date.now()}.txt`
@@ -175,6 +154,6 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error('Error testing S3 storage:', error);
-    return json({ ok: false, error: error?.message || 'No se pudo probar Amazon S3.' }, 500);
+    return json({ ok: false, error: error?.message || 'No se pudo probar Amazon S3.' }, workspaceErrorStatus(error));
   }
 }

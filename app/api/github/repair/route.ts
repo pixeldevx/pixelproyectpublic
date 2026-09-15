@@ -1,7 +1,9 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import crypto from "node:crypto";
+import { getWorkspaceClientForSystem } from "@/lib/workspaces/server";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getServerSupabase, listDocuments } from "@/lib/github/server";
+import { listDocuments } from "@/lib/github/server";
 import { repairGithubProjectEvidence } from "@/lib/github/sync";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
     if (!secret || !secureEqual(authorization, `Bearer ${secret}`)) {
       return NextResponse.json({ error: "Cron no autorizado." }, { status: 401 });
     }
-    const supabase = getServerSupabase();
+    const supabase = await getWorkspaceClientForSystem(process.env.GITHUB_AUTOMATION_WORKSPACE_ID || '');
     const projects = (await listDocuments(supabase, "projects", 5000))
       .filter((project: any) =>
         project.githubSettings?.installationId &&
@@ -44,6 +46,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true, projects: results.length, results });
   } catch (error: any) {
     console.error("GitHub automatic repair error:", error);
-    return NextResponse.json({ error: error?.message || "No se pudo ejecutar la reparación automática." }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "No se pudo ejecutar la reparación automática." }, { status: workspaceErrorStatus(error) });
   }
 }

@@ -145,7 +145,7 @@ export default function SettingsPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Configuración</h1>
-          <p className="text-slate-500">Administra los roles y usuarios del sistema</p>
+          <p className="text-slate-500">Administra los roles, el equipo y la configuración de tu espacio</p>
         </div>
         {activeTab === 'roles' && (
           <Button onClick={() => handleOpenModal()} className="bg-indigo-600 hover:bg-indigo-700 text-white">
@@ -155,8 +155,10 @@ export default function SettingsPage() {
         )}
       </div>
 
+      <p className="mb-5 text-xs leading-5 text-slate-500">Las conexiones con GitHub y los servicios de IA requieren una configuración adicional.</p>
+
       <div className="mb-6 border-b border-slate-200">
-        <div className="flex gap-6">
+        <div className="flex gap-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('roles')}
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
@@ -180,7 +182,7 @@ export default function SettingsPage() {
           >
             <div className="flex items-center gap-2">
               <Users size={16} />
-              Usuarios del Sistema
+              Usuarios del espacio
             </div>
           </button>
           <button

@@ -1,7 +1,7 @@
 # Instancia pública independiente
 
 - Repositorio: https://github.com/pixeldevx/pixelproyectpublic
-- Dominio previsto: https://public.pixelprojects.com.co
+- Dominio: https://public.pixelprojects.com.co
 - Supabase: pixelpublic (`ilwufjkxpgeggojppmzl`).
 - Origen del código: revisión `80def6c7525295fa7c31fb9352c03b84f292d75a`; historial independiente.
 
@@ -27,8 +27,18 @@ El administrador debe existir también en Supabase Auth. Registrar su correo med
 
 ```sh
 npm ci
-node --test tests/private-storage.test.cjs
+node --test tests/*.test.cjs
 npm run build
 ```
 
-El modelo de permisos del proyecto original usa miembros invitados. Esta versión no incorpora registro abierto ni una nueva arquitectura de aislamiento entre clientes. Revisar esos permisos antes de ofrecer autoservicio a organizaciones independientes.
+## Registro y espacios de prueba
+
+La portada explica los módulos e incluye acceso a `/register`. Un correo confirmado crea, de forma transaccional, un espacio privado con organización, perfil de propietario y roles iniciales. La prueba dura 14 días sin tarjeta; al vencer se bloquea el acceso operativo y se conservan los datos. La misma base soporta todos los espacios mediante membresías protegidas y políticas RLS.
+
+Antes de aplicar `20260915200621_workspace_trials.sql`, debe existir exactamente un administrador inicial en Auth que coincida con el perfil bootstrap. La migración conserva los registros actuales dentro de su espacio activo. No debe aplicarse a una instalación corporativa con múltiples administradores sin adaptar antes el traspaso.
+
+Para completar registros del público general, configura un remitente y SMTP propio en **Supabase → Authentication → Email**. Mantén la confirmación de correo habilitada. El servicio integrado de prueba limita los destinatarios; configurar `RESEND_API_KEY` en Vercel por sí solo no configura los correos de Auth. Las invitaciones de la app ofrecen un enlace manual cuando no está configurado Resend.
+
+En el despliegue del 15 de septiembre de 2026, el SMTP propio sigue pendiente. El formulario, el aprovisionamiento de espacios y el aislamiento están implementados; la confirmación de correo para cualquier visitante debe verificarse tras configurar el proveedor.
+
+Consulta [WORKSPACES.md](WORKSPACES.md) para el alcance de seguridad y las pruebas reproducibles.

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import {
   consumeGithubState,
   getAppBaseUrl,
-  getServerSupabase,
+  getGithubCallbackClient,
   githubFetch,
   readDocument,
   safeReturnTo,
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const state = request.nextUrl.searchParams.get("state") || "";
     const code = request.nextUrl.searchParams.get("code") || "";
     if (!code) throw new Error("GitHub no devolvió el código de autorización.");
-    const supabase = getServerSupabase();
+    const supabase = await getGithubCallbackClient(state, "identity");
     const payload = await consumeGithubState(supabase, state, "identity");
 
     const tokenResponse = await fetch("https://github.com/login/oauth/access_token", {

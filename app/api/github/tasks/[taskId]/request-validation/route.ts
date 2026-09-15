@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ensureProjectAccess, listDocuments, readDocument, writeDocument } from "@/lib/github/server";
@@ -77,6 +78,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ta
     return NextResponse.json({ ok: true, status: "validation" });
   } catch (error: any) {
     console.error("GitHub validation request error:", error);
-    return NextResponse.json({ error: error?.message || "No se pudo solicitar la validación." }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "No se pudo solicitar la validación." }, { status: workspaceErrorStatus(error) });
   }
 }

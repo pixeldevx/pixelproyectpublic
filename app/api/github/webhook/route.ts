@@ -1,8 +1,9 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
+import { getWorkspaceClientForSystem } from "@/lib/workspaces/server";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ingestGithubEvent } from "@/lib/github/events";
 import {
-  getServerSupabase,
   listInstallationRepositories,
   readDocument,
   verifyGithubWebhook,
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "El webhook no incluye identificadores suficientes." }, { status: 400 });
     }
     const payload = JSON.parse(rawBody || "{}");
-    const supabase = getServerSupabase();
+    const supabase = await getWorkspaceClientForSystem(process.env.GITHUB_AUTOMATION_WORKSPACE_ID || '');
     const existing = await readDocument(supabase, "github_webhook_deliveries", deliveryId);
     if (existing?.processedAt) {
       return NextResponse.json({ ok: true, duplicate: true });
@@ -85,6 +86,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, ...result });
   } catch (error: any) {
     console.error("GitHub webhook error:", error);
-    return NextResponse.json({ error: error?.message || "No se pudo procesar el webhook." }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "No se pudo procesar el webhook." }, { status: workspaceErrorStatus(error) });
   }
 }

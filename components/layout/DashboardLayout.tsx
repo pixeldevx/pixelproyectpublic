@@ -31,6 +31,8 @@ import { ProfileModal } from '@/components/settings/ProfileModal';
 import { doc, onSnapshot } from '@/lib/supabase/document-store';
 import { db } from '@/lib/backend';
 import { SYSTEM_ROLE_OPTIONS } from '@/lib/permissions';
+import { WorkspaceAccessState } from '@/components/auth/WorkspaceAccessState';
+import { trialDaysRemaining } from '@/lib/workspaces/types';
 
 const DEFAULT_BRAND_NAME = 'Pixel Project';
 const INVENTORY_OVERVIEW_ROLES = new Set(['admin', 'org_admin', 'manager']);
@@ -41,7 +43,7 @@ const ROLE_LABELS = Object.fromEntries(
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, userRole, loading, logout } = useAuth();
+  const { user, userRole, workspace, workspaceExpired, loading, logout } = useAuth();
   const { permissions: rolePermissions } = useRolePermissions(userRole);
   const isProjectDetailRoute = Boolean(pathname && /^\/projects\/[^/]+/.test(pathname));
   const inboxPendingCount = useInboxPendingCount(!isProjectDetailRoute);
@@ -59,13 +61,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const canAccessBillingOverview = Boolean(rolePermissions.billingOverview);
   const canAccessPersonnelOverview = Boolean(rolePermissions.personnelOverview);
   const canAccessAdministrationOverview = Boolean(user);
-  const roleLabel = ROLE_LABELS[userRole || ''] || 'Perfil de usuario';
+  const roleLabel = userRole === 'admin' ? 'Administrador del espacio' : ROLE_LABELS[userRole || ''] || 'Perfil de usuario';
+  const trialDays = trialDaysRemaining(workspace);
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'Usuario';
   const userInitial = displayName.charAt(0).toUpperCase();
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace('/');
+      router.replace('/login');
     }
   }, [loading, router, user]);
 
@@ -79,7 +82,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [isInitialAuthLoading]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !workspace || workspaceExpired) {
       return;
     }
 
@@ -98,7 +101,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, workspace, workspaceExpired]);
 
   useEffect(() => {
     if (!isProfileMenuOpen) return;
@@ -130,6 +133,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     setIsProfileMenuOpen(false);
     setIsProfileModalOpen(true);
   };
+
+  if (user && (loading || !workspace || !userRole || workspaceExpired)) return <WorkspaceAccessState />;
 
   if (isInitialAuthLoading) {
     return (
@@ -207,19 +212,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto overflow-x-hidden">
           {!isCollapsed && (
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 mt-4 px-2 whitespace-nowrap">
-              Overview
+              Mi espacio
             </div>
           )}
-          <NavItem href="/dashboard" icon={<LayoutDashboard size={18} />} label="Dashboard" active={pathname === '/dashboard'} collapsed={isCollapsed} />
+          <NavItem href="/dashboard" icon={<LayoutDashboard size={18} />} label="Inicio" active={pathname === '/dashboard'} collapsed={isCollapsed} />
           <NavItem href="/workflows" icon={<Inbox size={18} />} label="Bandeja de entrada" active={pathname?.startsWith('/workflows')} collapsed={isCollapsed} badge={inboxPendingCount} />
-          <NavItem href="/projects" icon={<FolderKanban size={18} />} label="Projects" active={pathname?.startsWith('/projects')} collapsed={isCollapsed} />
-          <NavItem href="/team" icon={<Users size={18} />} label="Team Performance" active={pathname?.startsWith('/team')} collapsed={isCollapsed} />
+          <NavItem href="/projects" icon={<FolderKanban size={18} />} label="Proyectos" active={pathname?.startsWith('/projects')} collapsed={isCollapsed} />
+          <NavItem href="/team" icon={<Users size={18} />} label="Equipo" active={pathname?.startsWith('/team')} collapsed={isCollapsed} />
           {canAccessPersonnelOverview && (
             <NavItem href="/personnel" icon={<BriefcaseBusiness size={18} />} label="Talento humano" active={pathname?.startsWith('/personnel')} collapsed={isCollapsed} />
           )}
-          <NavItem href="/quality" icon={<ShieldCheck size={18} />} label="Calidad global" active={pathname?.startsWith('/quality')} collapsed={isCollapsed} />
+          <NavItem href="/quality" icon={<ShieldCheck size={18} />} label="Calidad" active={pathname?.startsWith('/quality')} collapsed={isCollapsed} />
           {canAccessInventoryOverview && (
-            <NavItem href="/inventory" icon={<PackageSearch size={18} />} label="Inventario global" active={pathname?.startsWith('/inventory')} collapsed={isCollapsed} />
+            <NavItem href="/inventory" icon={<PackageSearch size={18} />} label="Inventario" active={pathname?.startsWith('/inventory')} collapsed={isCollapsed} />
           )}
           {canAccessBudgetOverview && (
             <NavItem href="/budgets" icon={<WalletCards size={18} />} label="Presupuestos" active={pathname?.startsWith('/budgets')} collapsed={isCollapsed} />
@@ -228,7 +233,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           
           {!isCollapsed && (
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 mt-8 px-2 whitespace-nowrap">
-              Finance & Billing
+              Gestión financiera
             </div>
           )}
           {canAccessBillingOverview && (
@@ -237,18 +242,18 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           {canAccessAdministrationOverview && (
             <NavItem href="/administration" icon={<BriefcaseBusiness size={18} />} label="Administrativo" active={pathname?.startsWith('/administration')} collapsed={isCollapsed} />
           )}
-          <NavItem href="/settlements" icon={<FileText size={18} />} label="Settlements" active={pathname?.startsWith('/settlements')} collapsed={isCollapsed} />
-          <NavItem href="/rate-cards" icon={<FileText size={18} />} label="Rate Cards" active={pathname?.startsWith('/rate-cards')} collapsed={isCollapsed} />
+          <NavItem href="/settlements" icon={<FileText size={18} />} label="Liquidaciones" active={pathname?.startsWith('/settlements')} collapsed={isCollapsed} />
+          <NavItem href="/rate-cards" icon={<FileText size={18} />} label="Tarifarios" active={pathname?.startsWith('/rate-cards')} collapsed={isCollapsed} />
           
           {userRole === 'admin' && !isCollapsed && (
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 mt-8 px-2 whitespace-nowrap">
-              System
+              Organización
             </div>
           )}
           {userRole === 'admin' && (
-            <NavItem href="/settings" icon={<Settings size={18} />} label="Settings" active={pathname?.startsWith('/settings')} collapsed={isCollapsed} />
+            <NavItem href="/settings" icon={<Settings size={18} />} label="Configuración" active={pathname?.startsWith('/settings')} collapsed={isCollapsed} />
           )}
-          {userRole === 'admin' && (
+          {workspace?.is_platform_admin === true && (
             <NavItem href="/licenses" icon={<KeyRound size={18} />} label="Licenciamiento" active={pathname?.startsWith('/licenses')} collapsed={isCollapsed} />
           )}
         </nav>
@@ -321,14 +326,22 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 )}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-slate-950">{brandName || DEFAULT_BRAND_NAME}</p>
-                <p className="truncate text-[11px] font-bold text-slate-400">Operacion inteligente</p>
+                <p className="truncate text-sm font-black text-slate-950">{workspace?.name || brandName || DEFAULT_BRAND_NAME}</p>
+                <p className="truncate text-[11px] font-bold text-slate-400">Pixel Project</p>
               </div>
             </div>
 
-            <div className="hidden flex-1 md:block" />
+            <div className="hidden min-w-0 flex-1 md:block">
+              <p className="truncate text-sm font-semibold text-slate-900">{workspace?.name}</p>
+              <p className="mt-0.5 text-xs text-slate-500">Tu espacio de trabajo</p>
+            </div>
           
             <div className="flex items-center gap-2 md:gap-4">
+            {trialDays !== null && (
+              <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-1.5 text-[10px] font-bold text-indigo-700 sm:text-xs">
+                Prueba · {trialDays} {trialDays === 1 ? 'día' : 'días'}
+              </span>
+            )}
             {loading && (
               <span className="hidden text-xs font-medium text-slate-400 sm:inline">
                 Verificando sesión...
@@ -419,7 +432,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         role="menuitem"
                       >
                         <Settings size={18} className="text-slate-400" />
-                        Configuración del sistema
+                        Configuración del espacio
                       </Link>
                     )}
                     <button
@@ -469,7 +482,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-14px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
         <div className="grid grid-cols-4 gap-1">
-          <MobileNavItem href="/dashboard" icon={<LayoutDashboard size={18} />} label="Dashboard" active={pathname === '/dashboard'} />
+          <MobileNavItem href="/dashboard" icon={<LayoutDashboard size={18} />} label="Inicio" active={pathname === '/dashboard'} />
           <MobileNavItem href="/workflows" icon={<Inbox size={18} />} label="Bandeja" active={pathname?.startsWith('/workflows')} badge={inboxPendingCount} />
           <MobileNavItem href="/projects" icon={<FolderKanban size={18} />} label="Proyectos" active={pathname?.startsWith('/projects')} />
           <MobileNavItem href="/alerts" icon={<Bell size={18} />} label="Alertas" active={pathname?.startsWith('/alerts')} />

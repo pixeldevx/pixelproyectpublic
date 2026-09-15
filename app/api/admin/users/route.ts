@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getWorkspaceServerClient, workspaceErrorStatus } from '@/lib/workspaces/server';
 import { getBootstrapAdminEmailSet } from '@/lib/bootstrap-admins';
 import { getOrganizationIds, getPrimaryOrganizationId } from '@/lib/organizations';
 
@@ -28,21 +28,7 @@ const getBearerToken = (request: NextRequest) => {
   return scheme?.toLowerCase() === 'bearer' ? token : '';
 };
 
-const getAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Falta configurar SUPABASE_SERVICE_ROLE_KEY en el entorno de Vercel.');
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-};
+const getAdminClient = getWorkspaceServerClient;
 
 const findDocumentsByEmail = async (
   supabase: AdminClient,
@@ -94,10 +80,10 @@ const ensureGlobalAdmin = async (
   const requesterEmail = normalizeEmail(data.user.email);
   const profile = await findRequesterProfile(supabase, data.user.id, requesterEmail);
   const profileRole = profile?.data?.role || profile?.data?.systemRole;
-  const isGlobalAdmin = ADMIN_EMAILS.has(requesterEmail) || profileRole === 'admin';
+  const isGlobalAdmin = ['owner', 'admin'].includes(supabase.workspace.role);
 
   if (!isGlobalAdmin) {
-    return { error: json({ error: 'Solo el administrador global puede administrar usuarios.' }, 403) };
+    return { error: json({ error: 'Solo el administrador del espacio puede administrar usuarios.' }, 403) };
   }
 
   return { user: data.user, email: requesterEmail };
@@ -189,6 +175,7 @@ const authStatusFor = (user: any, profile?: AppDocumentRow, teamMember?: AppDocu
   const inviteStatus = profileData.inviteStatus || teamData.inviteStatus;
 
   if (user.email_confirmed_at || user.confirmed_at) return 'confirmed';
+  if (inviteStatus === 'link_ready') return 'link_ready';
   if (user.invited_at || inviteStatus === 'invite_sent') return 'invite_sent';
   if (user.recovery_sent_at || inviteStatus === 'recovery_sent') return 'recovery_sent';
   if (user.confirmation_sent_at) return 'confirmation_sent';
@@ -404,7 +391,7 @@ const updateProjectEmailReferences = async (
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient(request);
     const authResult = await ensureGlobalAdmin(supabase, getBearerToken(request));
     if ('error' in authResult) return authResult.error;
 
@@ -427,13 +414,13 @@ export async function GET(request: NextRequest) {
     return json({ users });
   } catch (error: any) {
     console.error('Error listing admin users:', error);
-    return json({ error: error.message || 'No fue posible listar los usuarios.' }, 500);
+    return json({ error: error.message || 'No fue posible listar los usuarios.' }, workspaceErrorStatus(error));
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient(request);
     const authResult = await ensureGlobalAdmin(supabase, getBearerToken(request));
     if ('error' in authResult) return authResult.error;
 
@@ -519,13 +506,13 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error updating admin user email:', error);
-    return json({ error: error.message || 'No fue posible actualizar el correo del usuario.' }, 500);
+    return json({ error: error.message || 'No fue posible actualizar el correo del usuario.' }, workspaceErrorStatus(error));
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient(request);
     const authResult = await ensureGlobalAdmin(supabase, getBearerToken(request));
     if ('error' in authResult) return authResult.error;
 
@@ -552,6 +539,6 @@ export async function DELETE(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error deleting admin user:', error);
-    return json({ error: error.message || 'No fue posible eliminar el usuario.' }, 500);
+    return json({ error: error.message || 'No fue posible eliminar el usuario.' }, workspaceErrorStatus(error));
   }
 }

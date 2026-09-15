@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { User as UserIcon, X, Camera, PenLine, Landmark, Plus, Trash2 } from 'lucide-react';
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from '@/lib/supabase/document-store';
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from '@/lib/supabase/document-store';
 import { updateProfile } from '@/lib/supabase/auth-shim';
 import { db, auth, storage } from '@/lib/backend';
 import { getAuthorizedDownloadURL, ref } from '@/lib/supabase/storage-shim';
@@ -162,17 +162,9 @@ export function ProfileModal({ user, isOpen, onClose }: ProfileModalProps) {
         uploadedSignaturePath = signatureUpload.storagePath;
       }
 
-      // Update Supabase Auth Profile
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, {
-          displayName: displayName,
-          photoURL: uploadedPhotoURL
-        });
-      }
-
       // Update Supabase User Document
       const userRef = doc(db, 'users', user.uid);
-      await setDoc(userRef, {
+      await updateDoc(userRef, {
         displayName: displayName,
         identificationType,
         identificationNumber: identificationNumber.trim(),
@@ -186,7 +178,7 @@ export function ProfileModal({ user, isOpen, onClose }: ProfileModalProps) {
           signatureStoragePath: uploadedSignaturePath,
           signatureUpdatedAt: serverTimestamp(),
         }),
-      }, { merge: true });
+      });
 
       const memberSnapshots = await Promise.all([
         user.email
@@ -211,6 +203,15 @@ export function ProfileModal({ user, isOpen, onClose }: ProfileModalProps) {
           })
         )
       );
+
+      // Publish Auth display changes last, after the profile writes finish.
+      // Auth listeners may reload workspace context when the display name changes.
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName,
+          photoURL: uploadedPhotoURL,
+        });
+      }
 
       toast.success("Perfil actualizado exitosamente");
       onClose();

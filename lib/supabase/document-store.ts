@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_DOCUMENTS_TABLE } from './client';
+import { getClientWorkspace, requireClientWorkspace } from '@/lib/workspaces/client-context';
 
 type Primitive = string | number | boolean | null;
 type DataValue = Primitive | DataValue[] | { [key: string]: DataValue };
@@ -206,11 +207,8 @@ const changeMatchesSource = (
   return true;
 };
 
-const getRealtimeFilter = (source: DocumentReference | CollectionReference | SupabaseQuery) => {
-  const watched = getWatchedCollection(source);
-  if (watched.isCollectionGroup && watched.collectionGroupId) return `collection_group=eq.${watched.collectionGroupId}`;
-  return `collection_path=eq.${watched.collectionPath}`;
-};
+const getRealtimeFilter = (_source: DocumentReference | CollectionReference | SupabaseQuery) =>
+  `tenant_id=eq.${requireClientWorkspace()}`;
 
 type SharedRealtimeListener = (payload: any) => void;
 
@@ -227,7 +225,7 @@ const acquireSharedRealtimeChannel = (
   listener: SharedRealtimeListener,
 ) => {
   const realtimeFilter = getRealtimeFilter(source);
-  const channelKey = realtimeFilter || 'all_documents';
+  const channelKey = `${getClientWorkspace()}:${realtimeFilter || 'all_documents'}`;
   let shared = sharedRealtimeChannels.get(channelKey);
 
   if (!shared) {
@@ -440,6 +438,7 @@ const collectionFetchInFlight = new Map<string, Promise<Row[]>>();
 
 const getCollectionFetchKey = (source: CollectionReference, constraints: QueryConstraint[] = []) =>
   stableStringify({
+    workspaceId: getClientWorkspace(),
     collectionPath: source.collectionPath,
     collectionGroup: source.isCollectionGroup ? source.id : null,
     constraints,
@@ -729,12 +728,13 @@ export const getDocs = async (source: CollectionReference | SupabaseQuery) => {
 const saveDocData = async (ref: DocumentReference, data: Record<string, any>) => {
   const { error } = await supabase.from(SUPABASE_DOCUMENTS_TABLE).upsert(
     {
+      tenant_id: requireClientWorkspace(),
       collection_path: ref.collectionPath,
       doc_id: ref.id,
       data,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: 'collection_path,doc_id' }
+    { onConflict: 'tenant_id,collection_path,doc_id' }
   );
 
   if (error) throw error;
@@ -747,12 +747,13 @@ const saveDocDataMany = async (items: Array<{ ref: DocumentReference; data: Reco
   for (const chunk of chunkArray(items, BULK_WRITE_CHUNK_SIZE)) {
     const { error } = await supabase.from(SUPABASE_DOCUMENTS_TABLE).upsert(
       chunk.map(({ ref, data }) => ({
+        tenant_id: requireClientWorkspace(),
         collection_path: ref.collectionPath,
         doc_id: ref.id,
         data,
         updated_at: updatedAt,
       })),
-      { onConflict: 'collection_path,doc_id' }
+      { onConflict: 'tenant_id,collection_path,doc_id' }
     );
 
     if (error) throw error;
@@ -949,19 +950,20 @@ export function onSnapshot(
   onError?: (error: any) => void
 ) {
   let active = true;
+  const subscribedWorkspace = getClientWorkspace();
   let emitting = false;
   let pendingEmit = false;
   let remoteEmitTimer: ReturnType<typeof setTimeout> | null = null;
 
   const emit = async () => {
     try {
-      if (!active) return;
+      if (!active || subscribedWorkspace !== getClientWorkspace()) return;
       if ((source as DocumentReference).kind === 'doc') {
         const snapshot = await getDoc(source as DocumentReference);
-        if (active) onNext(snapshot);
+        if (active && subscribedWorkspace === getClientWorkspace()) onNext(snapshot);
       } else {
         const snapshot = await getDocs(source as CollectionReference | SupabaseQuery);
-        if (active) onNext(snapshot);
+        if (active && subscribedWorkspace === getClientWorkspace()) onNext(snapshot);
       }
     } catch (error) {
       if (active) onError?.(error);
@@ -1016,9 +1018,17 @@ export function onSnapshot(
   }
 
   const releaseRealtimeChannel = acquireSharedRealtimeChannel(source, handleRemoteChange);
+  // DELETE events are not published because they cannot be protected by RLS.
+  const refreshIfVisible = () => {
+    if (typeof document === 'undefined' || document.visibilityState === 'visible') requestEmit();
+  };
+  const deletionRefresh = setInterval(refreshIfVisible, 60000);
+  if (typeof window !== 'undefined') window.addEventListener('focus', refreshIfVisible);
 
   return () => {
     active = false;
+    clearInterval(deletionRefresh);
+    if (typeof window !== 'undefined') window.removeEventListener('focus', refreshIfVisible);
     if (remoteEmitTimer) {
       clearTimeout(remoteEmitTimer);
       remoteEmitTimer = null;

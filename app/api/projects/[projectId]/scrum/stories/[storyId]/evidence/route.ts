@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import { Buffer } from 'node:buffer';
 import crypto from 'node:crypto';
 import type { NextRequest } from 'next/server';
@@ -135,7 +136,7 @@ export async function POST(
     const story = await readStory(authorized.access.supabase, projectId, storyId);
     if (!story) return json({ error: 'La historia no existe o ya no está disponible.' }, 404);
 
-    const settings = await getDocumentStorageSettings();
+    const settings = await getDocumentStorageSettings(request);
     if (settings.provider !== 's3') {
       return json({ error: 'Las evidencias visuales requieren el almacenamiento seguro S3 configurado para documentos.' }, 503);
     }
@@ -185,7 +186,7 @@ export async function POST(
       documentName: uniqueName,
       folderSegments: ['evidencias-visuales', slugifyStorageSegment(section, 'general')],
     });
-    const s3 = await getS3RuntimeConfig();
+    const s3 = await getS3RuntimeConfig(request);
     const key = buildS3ObjectKey(s3.prefix, storagePath);
     const uploadUrl = createS3PresignedUrl({
       method: 'PUT',
@@ -301,7 +302,7 @@ export async function DELETE(
 
     const parsed = parseS3StoragePath(String(evidence.storagePath || ''));
     if (parsed) {
-      const s3 = await getS3RuntimeConfig();
+      const s3 = await getS3RuntimeConfig(request);
       if (parsed.bucket !== s3.bucket) return json({ error: 'La evidencia usa un bucket no autorizado.' }, 403);
       const deleteUrl = createS3PresignedUrl({
         method: 'DELETE',
@@ -319,7 +320,7 @@ export async function DELETE(
     return json({ ok: true });
   } catch (error: any) {
     console.error('Error deleting story visual evidence:', error);
-    return json({ error: error?.message || 'No se pudo eliminar la evidencia.' }, 500);
+    return json({ error: error?.message || 'No se pudo eliminar la evidencia.' }, workspaceErrorStatus(error));
   }
 }
 
@@ -360,6 +361,6 @@ export async function PATCH(
     return json({ ok: true });
   } catch (error: any) {
     console.error('Error reordering story visual evidence:', error);
-    return json({ error: error?.message || 'No se pudo guardar el orden de las evidencias.' }, 500);
+    return json({ error: error?.message || 'No se pudo guardar el orden de las evidencias.' }, workspaceErrorStatus(error));
   }
 }

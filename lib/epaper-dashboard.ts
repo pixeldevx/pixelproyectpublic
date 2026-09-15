@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'crypto';
 import type { NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getWorkspaceClientForSystem } from '@/lib/workspaces/server';
 
 const DOCUMENTS_TABLE = 'app_documents';
 const PAGE_SIZE = 1000;
@@ -192,21 +192,7 @@ export const authorizeEpaperRequest = (request: NextRequest): AuthResult => {
   return { ok: true, tokenSource, token };
 };
 
-const getServerSupabase = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Falta configurar NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en Vercel.');
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-};
+const getServerSupabase = () => getWorkspaceClientForSystem(process.env.EPAPER_WORKSPACE_ID || '');
 
 const parseDate = (value: any): number | null => {
   if (!value) return null;
@@ -356,7 +342,7 @@ const statusLabel = (task: EpaperTask) => {
 };
 
 async function fetchRowsByCollectionPath(collectionPath: string, maxRows: number) {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   const rows: AppDocumentRow[] = [];
   let from = 0;
 
@@ -380,7 +366,7 @@ async function fetchRowsByCollectionPath(collectionPath: string, maxRows: number
 }
 
 async function fetchRowsByCollectionGroup(collectionGroup: string, maxRows: number) {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   const rows: AppDocumentRow[] = [];
   let from = 0;
 
@@ -407,7 +393,7 @@ const getCollectionFingerprint = async (
   field: 'collection_path' | 'collection_group',
   value: string,
 ) => {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   const { data, error, count } = await supabase
     .from(DOCUMENTS_TABLE)
     .select('updated_at', { count: 'exact' })
@@ -474,7 +460,7 @@ const normalizeCachedSnapshot = (snapshot: EpaperDashboardSnapshot): EpaperDashb
 });
 
 const readPersistedSnapshot = async (): Promise<EpaperDashboardSnapshot | null> => {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   const { data, error } = await supabase
     .from(DOCUMENTS_TABLE)
     .select('data')
@@ -495,7 +481,7 @@ const readPersistedSnapshot = async (): Promise<EpaperDashboardSnapshot | null> 
 };
 
 const persistSnapshot = async (snapshot: EpaperDashboardSnapshot) => {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   const cachedDocument: CachedSnapshotDocument = {
     schemaVersion: SNAPSHOT_CACHE_SCHEMA_VERSION,
     snapshot: withDeliveryState(snapshot, 'live'),

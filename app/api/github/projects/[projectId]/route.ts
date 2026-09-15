@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
     });
   } catch (error: any) {
     console.error("GitHub project configuration GET error:", error);
-    return NextResponse.json({ error: error?.message || "No se pudo cargar la integración de GitHub." }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "No se pudo cargar la integración de GitHub." }, { status: workspaceErrorStatus(error) });
   }
 }
 
@@ -88,6 +89,6 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ p
     return NextResponse.json({ ok: true, selectedRepositories: requested });
   } catch (error: any) {
     console.error("GitHub project configuration PATCH error:", error);
-    return NextResponse.json({ error: error?.message || "No se pudo guardar la configuración de GitHub." }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "No se pudo guardar la configuración de GitHub." }, { status: workspaceErrorStatus(error) });
   }
 }

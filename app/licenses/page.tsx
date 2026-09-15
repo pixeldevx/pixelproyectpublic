@@ -109,7 +109,7 @@ const getLicenseState = (license: License) => {
 };
 
 export default function LicensesPage() {
-  const { userRole, loading } = useAuth();
+  const { workspace, loading } = useAuth();
   const [licenses, setLicenses] = useState<License[]>([]);
   const [usage, setUsage] = useState<UsageLog[]>([]);
   const [selectedLicenseId, setSelectedLicenseId] = useState('');
@@ -120,7 +120,7 @@ export default function LicensesPage() {
   const [isDeleting, setIsDeleting] = useState('');
   const [isLoadingUsage, setIsLoadingUsage] = useState(false);
 
-  const isAdmin = userRole === 'admin';
+  const isAdmin = workspace?.is_platform_admin === true;
 
   const authHeaders = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -290,7 +290,7 @@ export default function LicensesPage() {
             <KeyRound className="mx-auto mb-4 h-12 w-12 text-slate-300" />
             <h1 className="text-xl font-black text-slate-950">Acceso denegado</h1>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              Solo el administrador global puede administrar licencias de scripts.
+              Las licencias de scripts se administran desde la cuenta de la plataforma. Esta sección no forma parte de tu espacio de trabajo.
             </p>
           </div>
         </div>

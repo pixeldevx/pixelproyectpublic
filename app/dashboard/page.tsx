@@ -111,7 +111,7 @@ const BLOCKED_STATUSES = new Set(['stuck', 'detenido', 'blocked']);
 const PENDING_STATUSES = new Set(['todo', 'pending', 'not_started', 'no_iniciado']);
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrador global',
+  admin: 'Administrador del espacio',
   org_admin: 'Administrador de organización',
   manager: 'Gerente',
   coordinador: 'Coordinador',
@@ -311,7 +311,7 @@ function ProgressLine({ label, value, color }: { label: string; value: number; c
 }
 
 export default function DashboardPage() {
-  const { user, userRole, userOrganizationId, userOrganizationIds } = useAuth();
+  const { user, userRole, userOrganizationId, userOrganizationIds, workspace, workspaceExpired } = useAuth();
   const [projects, setProjects] = useState<DashboardProject[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [tasksByProject, setTasksByProject] = useState<Record<string, DashboardTask[]>>({});
@@ -342,7 +342,7 @@ export default function DashboardPage() {
   const canSeeProjectSummary = MANAGER_ROLES.has(userRole || '');
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !workspace || workspaceExpired) return;
 
     const unsubscribe = onSnapshot(
       query(collection(db, 'team_members')),
@@ -355,10 +355,10 @@ export default function DashboardPage() {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, workspace, workspaceExpired]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !workspace || workspaceExpired) return;
 
     const unsubscribe = onSnapshot(
       query(collection(db, 'projects')),
@@ -377,7 +377,7 @@ export default function DashboardPage() {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, workspace, workspaceExpired]);
 
   const visibleProjects = useMemo(() => {
     return projects.filter((project) => {
@@ -398,7 +398,7 @@ export default function DashboardPage() {
   }, [currentUserIds, managedOrganizationIds, projects, userEmail, userRole, userUid]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !workspace || workspaceExpired) return;
 
     if (visibleProjects.length === 0) return;
 
@@ -422,7 +422,7 @@ export default function DashboardPage() {
     );
 
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
-  }, [user, visibleProjects]);
+  }, [user, visibleProjects, workspace, workspaceExpired]);
 
   const projectDashboards = useMemo<ProjectDashboard[]>(() => {
     return visibleProjects.map((project) => {
@@ -523,7 +523,7 @@ export default function DashboardPage() {
                 Centro inteligente
               </div>
               <h1 className="text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">
-                Hola, {displayName}. Tu operación está lista para decidir.
+                Hola, {displayName}. {workspace?.name ? `Bienvenido a ${workspace.name}.` : 'Tu espacio está listo.'}
               </h1>
               <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-500">
                 {canSeeProjectSummary
@@ -588,11 +588,21 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : visibleProjects.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-            <FolderKanban className="mx-auto mb-3 text-slate-300" size={40} />
-            <h2 className="text-lg font-black text-slate-900">Aun no tienes proyectos asignados</h2>
-            <p className="mt-1 text-sm text-slate-500">Cuando te vinculen a un proyecto, este tablero empezara a mostrar tu operacion.</p>
-          </div>
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 bg-gradient-to-br from-indigo-50 via-white to-slate-50 p-6 sm:p-8">
+              <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-100"><Sparkles size={14} /> Tu primer paso en Pixel</span>
+              <h2 className="text-2xl font-bold tracking-tight text-slate-950">Un espacio en blanco. Muchas posibilidades.</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">{canSeeProjectSummary ? 'Crea un proyecto, organiza sus tareas y explora cómo se conecta tu operación. Este espacio pertenece a tu organización; los datos de otras organizaciones permanecen separados.' : 'Tu espacio está preparado. Cuando tu equipo te asigne un proyecto, verás aquí las tareas, los avances y las próximas entregas.'}</p>
+              {canSeeProjectSummary && <Link href="/projects" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white hover:bg-indigo-700">Crear mi primer proyecto <ArrowRight size={16} /></Link>}
+            </div>
+            <div className="grid gap-0 divide-y divide-slate-100 md:grid-cols-3 md:divide-x md:divide-y-0">
+              {[
+                { title: 'Dale forma a tu proyecto', text: 'Define tareas, responsables y fechas. Prueba las vistas de tablero y cronograma.', href: '/projects', icon: FolderKanban },
+                { title: 'Organiza tu equipo', text: 'Reúne los perfiles de tu organización y asigna responsabilidades.', href: '/team', icon: Users },
+                { title: 'Explora el seguimiento', text: 'Conecta presupuestos, documentos y avances para ver el panorama completo.', href: '/budgets', icon: BarChart3 },
+              ].map(({ title, text, href, icon: Icon }, index) => <Link key={title} href={href} className="group p-6 transition-colors hover:bg-slate-50"><span className="flex items-center gap-3 text-indigo-600"><Icon size={21} /><span className="text-xs font-bold text-slate-400">0{index + 1}</span></span><h3 className="mt-4 text-sm font-bold text-slate-900 group-hover:text-indigo-600">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-500">{text}</p></Link>)}
+            </div>
+          </section>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-4">

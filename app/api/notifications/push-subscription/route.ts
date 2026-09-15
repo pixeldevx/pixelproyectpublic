@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getWorkspaceServerClient, workspaceErrorStatus } from '@/lib/workspaces/server';
 import { createPushSubscriptionAttestation } from '@/lib/push/subscription-attestation';
 import { validateWebPushEndpoint } from '@/lib/push/endpoint-security';
 
@@ -23,21 +23,7 @@ const getBearerToken = (request: NextRequest) => {
   return scheme?.toLowerCase() === 'bearer' ? token : '';
 };
 
-const getAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Falta configurar SUPABASE_SERVICE_ROLE_KEY en el entorno de Vercel.');
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-};
+const getAdminClient = getWorkspaceServerClient;
 
 const normalizeStringArray = (value: unknown) =>
   Array.isArray(value)
@@ -117,7 +103,7 @@ const deactivatePreviousDeviceSubscriptions = async (
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient(request);
     const token = getBearerToken(request);
     const { data: requesterData, error: requesterError } = await supabase.auth.getUser(token);
 
@@ -220,6 +206,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error saving push subscription:', error);
-    return json({ error: error.message || 'No fue posible guardar la suscripción push.' }, 500);
+    return json({ error: error.message || 'No fue posible guardar la suscripción push.' }, workspaceErrorStatus(error));
   }
 }

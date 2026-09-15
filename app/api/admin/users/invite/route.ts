@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getWorkspaceServerClient, workspaceErrorStatus } from '@/lib/workspaces/server';
 import { getBootstrapAdminEmailSet } from '@/lib/bootstrap-admins';
-import { getPrimaryOrganizationId } from '@/lib/organizations';
 import { sendEmailWithResend } from '@/lib/email/resend';
 import {
   buildUserAccessEmailHtml,
   buildUserAccessSubject,
   buildUserAccessText,
-  getOrganizationAccessLabel,
   getUserAccessRoleLabel,
   type UserAccessEmailMode,
 } from '@/lib/email/user-access-template';
@@ -36,7 +34,7 @@ type AppDocumentRow = {
 type AdminClient = any;
 
 const json = (body: Record<string, any>, status = 200) =>
-  NextResponse.json(body, { status });
+  NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
 
 const normalizeEmail = (value: unknown) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -112,21 +110,7 @@ const getAppUrlFromRedirect = (redirectTo: string) => {
   }
 };
 
-const getAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Falta configurar SUPABASE_SERVICE_ROLE_KEY en el entorno de Vercel.');
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-};
+const getAdminClient = getWorkspaceServerClient;
 
 const findDocumentsByEmail = async (
   supabase: AdminClient,
@@ -190,10 +174,10 @@ const ensureGlobalAdmin = async (
   const requesterEmail = normalizeEmail(data.user.email);
   const profile = await findRequesterProfile(supabase, data.user.id, requesterEmail);
   const profileRole = profile?.data?.role || profile?.data?.systemRole;
-  const isGlobalAdmin = ADMIN_EMAILS.has(requesterEmail) || profileRole === 'admin';
+  const isGlobalAdmin = ['owner', 'admin'].includes(supabase.workspace.role);
 
   if (!isGlobalAdmin) {
-    return { error: json({ error: 'Solo el administrador global puede invitar usuarios.' }, 403) };
+    return { error: json({ error: 'Solo el administrador del espacio puede invitar usuarios.' }, 403) };
   }
 
   return { user: data.user, email: requesterEmail };
@@ -312,7 +296,7 @@ const sendUserAccessEmail = async ({
     recipientEmail: email,
     invitedBy,
     roleLabel: getUserAccessRoleLabel(systemRole),
-    organizationLabel: systemRole === 'admin' ? 'Acceso global' : getOrganizationAccessLabel(organizationIds),
+    organizationLabel: 'Tu espacio de trabajo',
     mode,
   };
 
@@ -323,16 +307,12 @@ const sendUserAccessEmail = async ({
     text: buildUserAccessText(emailData),
   });
 
-  if (result.skipped) {
-    throw new Error('Falta configurar RESEND_API_KEY para enviar invitaciones personalizadas.');
-  }
-
   return result;
 };
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient(request);
     const authResult = await ensureGlobalAdmin(supabase, getBearerToken(request));
     if ('error' in authResult) return authResult.error;
 
@@ -340,8 +320,11 @@ export async function POST(request: NextRequest) {
     const email = normalizeEmail(payload.email);
     const displayName = displayNameFor(payload.displayName, email);
     const systemRole = SYSTEM_ROLES.has(payload.systemRole) ? payload.systemRole : 'user';
-    const organizationIds = normalizeOrganizationIds(payload);
-    const organizationId = getPrimaryOrganizationId({ organizationIds });
+    const organizationIds = Array.from(new Set([supabase.workspace.workspaceId, ...normalizeOrganizationIds(payload)]));
+    const organizationId = supabase.workspace.workspaceId;
+    const { data: validOrgs, error: orgError } = await supabase.from(DOCUMENTS_TABLE).select('doc_id').eq('collection_path', 'organizations').in('doc_id', organizationIds);
+    if (orgError) throw orgError;
+    if (validOrgs.length !== organizationIds.length) return json({ error: 'Selecciona organizaciones de tu espacio.' }, 400);
     const projectRoleId =
       typeof payload.projectRoleId === 'string' && payload.projectRoleId.trim()
         ? payload.projectRoleId.trim()
@@ -367,8 +350,8 @@ export async function POST(request: NextRequest) {
     const metadata = {
       displayName,
       role: systemRole,
-      organizationId: systemRole === 'admin' ? null : organizationId,
-      organizationIds: systemRole === 'admin' ? [] : organizationIds,
+      organizationId,
+      organizationIds,
       invitedBy: authResult.email,
     };
 
@@ -413,6 +396,8 @@ export async function POST(request: NextRequest) {
       return json({ error: 'Supabase no retornó el usuario invitado.' }, 502);
     }
 
+    const { error: roleError } = await supabase.auth.admin.setWorkspaceRole(authUser.id, systemRole);
+    if (roleError) throw roleError;
     const now = new Date().toISOString();
     const existingTeamMembers = await findDocumentsByEmail(supabase, 'team_members', email);
     const teamMemberDocId = existingTeamMembers[0]?.doc_id || authUser.id;
@@ -430,8 +415,8 @@ export async function POST(request: NextRequest) {
       invitedBy: authResult.email,
       updatedAt: now,
       ...(photoURL ? { photoURL } : {}),
-      organizationId: systemRole === 'admin' ? null : organizationId,
-      organizationIds: systemRole === 'admin' ? [] : organizationIds,
+      organizationId,
+      organizationIds,
     };
 
     const teamMemberProfile = {
@@ -446,8 +431,8 @@ export async function POST(request: NextRequest) {
       invitedBy: authResult.email,
       updatedAt: now,
       ...(photoURL ? { photoURL } : {}),
-      organizationId: systemRole === 'admin' ? null : organizationId,
-      organizationIds: systemRole === 'admin' ? [] : organizationIds,
+      organizationId,
+      organizationIds,
     };
 
     const { error: upsertError } = await withTimeout(
@@ -477,7 +462,7 @@ export async function POST(request: NextRequest) {
     if (upsertError) throw upsertError;
     await removeDuplicateUserProfiles(supabase, email, authUser.id);
 
-    await sendUserAccessEmail({
+    const delivery = await sendUserAccessEmail({
       email,
       displayName,
       invitedBy: authResult.email,
@@ -488,11 +473,21 @@ export async function POST(request: NextRequest) {
       mode: inviteMode === 'invite_sent' ? 'invite' : 'recovery',
     });
 
+    if (delivery.skipped) {
+      const { error: pendingError } = await supabase.from(DOCUMENTS_TABLE).upsert([
+        { collection_path: 'users', doc_id: authUser.id, data: { ...userProfile, inviteStatus: 'link_ready', lastInvitationSentAt: null } },
+        { collection_path: 'team_members', doc_id: teamMemberDocId, data: { ...(existingTeamMembers[0]?.data || {}), ...teamMemberProfile, inviteStatus: 'link_ready', lastInvitationSentAt: null } },
+      ]);
+      if (pendingError) throw pendingError;
+    }
+
     return json({
+      delivery: delivery.skipped ? 'manual' : 'email',
+      ...(delivery.skipped ? { invitationUrl: actionUrl } : {}),
       userId: authUser.id,
       email,
-      inviteStatus: inviteMode,
-      message:
+      inviteStatus: delivery.skipped ? 'link_ready' : inviteMode,
+      message: delivery.skipped ? 'Usuario creado. El correo automático está pendiente; comparte el enlace de invitación.' :
         inviteMode === 'invite_sent'
           ? 'Usuario creado e invitación enviada.'
           : 'Usuario actualizado y enlace de contraseña enviado.',

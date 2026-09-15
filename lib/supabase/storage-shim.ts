@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_STORAGE_BUCKET } from './client';
+import { workspaceStoragePath } from '@/lib/workspaces/client-context';
 import { formatS3StoragePath, parseS3StoragePath } from '@/lib/storage/paths';
 
 type StorageRoot = { bucket?: string };
@@ -60,6 +61,7 @@ export const ref = (storage: StorageRoot, path: string): StorageRef => {
 };
 
 export const uploadBytes = async (storageRef: StorageRef, file: File) => {
+  storageRef.fullPath = workspaceStoragePath(storageRef.fullPath);
   const headers = await getAuthHeaders();
   const planResponse = await fetch('/api/storage/upload-url', {
     method: 'POST',
@@ -106,6 +108,7 @@ export const uploadBytes = async (storageRef: StorageRef, file: File) => {
     throw new Error(errorPayload?.error || 'No se pudo preparar la carga del archivo.');
   }
 
+  storageRef.fullPath = workspaceStoragePath(storageRef.fullPath);
   const { error } = await supabase.storage
     .from(storageRef.bucket)
     .upload(storageRef.fullPath, file, { upsert: true });
@@ -125,6 +128,7 @@ export const uploadBytesToSupabase = async (storageRef: StorageRef, file: File) 
     throw new Error('La ruta seleccionada pertenece a Amazon S3 y no puede cargarse como capa espacial de Supabase.');
   }
 
+  storageRef.fullPath = workspaceStoragePath(storageRef.fullPath);
   const { error } = await supabase.storage
     .from(storageRef.bucket)
     .upload(storageRef.fullPath, file, { upsert: true });

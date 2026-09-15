@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getWorkspaceServerClient, workspaceErrorStatus } from '@/lib/workspaces/server';
 import { getBootstrapAdminEmailSet } from '@/lib/bootstrap-admins';
 import { getOrganizationIds } from '@/lib/organizations';
 import {
@@ -47,12 +47,7 @@ const getBearerToken = (request: NextRequest) => {
   return scheme?.toLowerCase() === 'bearer' ? token : '';
 };
 
-const getAdminClient = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) throw new Error('Falta configurar Supabase en el servidor.');
-  return createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-};
+const getAdminClient = getWorkspaceServerClient;
 
 const getDocumentRow = async (supabase: any, collectionPath: string, docId: string) => {
   const { data, error } = await supabase
@@ -252,7 +247,7 @@ const postAssignmentNotification = async (
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient(request);
     const bearerToken = getBearerToken(request);
     const { data: authData, error: authError } = await supabase.auth.getUser(bearerToken);
     const authUser = authData?.user;
@@ -304,7 +299,7 @@ export async function POST(request: NextRequest) {
     const actorName = clean(
       actorProfileData.displayName || actorProfileData.name || authUser.user_metadata?.displayName || authUser.email
     );
-    const isGlobalAdmin = ADMIN_EMAILS.has(normalize(authUser.email)) || canonicalRole === 'admin';
+    const isGlobalAdmin = ['owner', 'admin'].includes(supabase.workspace.role);
 
     const organizationId = getOrganizationIds(projectRow.data)[0] || '';
     const organizationRow = organizationId
@@ -535,6 +530,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error applying contractor account action:', error);
-    return json({ error: error?.message || 'No fue posible actualizar la cuenta de cobro.' }, 500);
+    return json({ error: error?.message || 'No fue posible actualizar la cuenta de cobro.' }, workspaceErrorStatus(error));
   }
 }

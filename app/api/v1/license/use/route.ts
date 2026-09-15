@@ -3,6 +3,7 @@ import {
   getClientIp,
   getLicenseRejection,
   getServerSupabase,
+  ensureLicenseAdmin,
   json,
   LICENSE_TABLE,
   normalizeInteger,
@@ -26,6 +27,9 @@ const errorMessageFor = (message: string, action: string) => {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getServerSupabase();
+    const authorization = await ensureLicenseAdmin(request, supabase);
+    if ('error' in authorization) return authorization.error;
     const body = await request.json().catch(() => ({}));
     const licenseKey = normalizeLicenseKey(body.license_key);
     const machineId = normalizeText(body.machine_id, 64);
@@ -50,7 +54,6 @@ export async function POST(request: NextRequest) {
       }, 400);
     }
 
-    const supabase = getServerSupabase();
     const rpcName = operationId ? 'consume_license_use_v2' : 'consume_license_use';
     const operationHash = operationId
       ? sha256Hex(stableStringify({

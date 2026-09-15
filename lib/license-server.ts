@@ -117,13 +117,7 @@ export const ensureLicenseAdmin = async (request: NextRequest, supabase = getSer
   const email = normalizeEmail(data.user.email);
   if (ADMIN_EMAILS.has(email)) return { user: data.user, email };
 
-  const profile = await findRequesterProfile(supabase, data.user.id, email);
-  const role = profile?.role || profile?.systemRole;
-  if (role !== 'admin') {
-    return { error: json({ error: 'Solo el administrador global puede administrar licencias.' }, 403) };
-  }
-
-  return { user: data.user, email };
+  return { error: json({ error: 'Esta función pertenece a la administración de Pixel.', }, 403) };
 };
 
 export const serializeLicense = (license: LicenseRecord) => {

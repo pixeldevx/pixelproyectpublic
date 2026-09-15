@@ -65,14 +65,14 @@ const S3_PRIVATE_CONFIG_ERROR =
   'La conexión todavía no está completa. Revisa la configuración privada del proveedor en Vercel.';
 
 export function DocumentStorageManagement() {
-  const { user, userRole } = useAuth();
+  const { user, userRole, workspace } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [settings, setSettings] = useState<StorageSettings>(DEFAULT_SETTINGS);
   const [status, setStatus] = useState<any>(null);
 
-  const canManage = userRole === 'admin';
+  const canManage = userRole === 'admin' && workspace?.is_platform_admin === true;
   const activeProvider = providerCopy[settings.provider];
   const ActiveProviderIcon = activeProvider.icon;
   const isS3Provider = settings.provider === 's3';
@@ -261,7 +261,15 @@ export function DocumentStorageManagement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManage]);
 
-  if (!canManage) return null;
+  if (!canManage) return (
+    <Card className="border-slate-200">
+      <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck size={22} className="text-emerald-600" /> Archivos privados de tu organización</CardTitle><CardDescription>El almacenamiento ya está preparado para tu espacio de trabajo.</CardDescription></CardHeader>
+      <CardContent className="space-y-4 text-sm leading-6 text-slate-600">
+        <p>Puedes subir documentos y evidencias desde tus proyectos. El acceso requiere una sesión de tu organización; otras organizaciones no pueden consultar tus archivos.</p>
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-800"><CheckCircle2 size={18} /> Almacenamiento privado incluido en tu espacio.</div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="space-y-6">

@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { STORAGE_SESSION_COOKIE, storageClientForToken } from '@/lib/storage/private-session';
 
 export async function POST(request: NextRequest) {
-  if (request.headers.get('origin') !== request.nextUrl.origin) {
+  const allowedOrigins = new Set([request.nextUrl.origin]);
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    allowedOrigins.add(new URL(process.env.NEXT_PUBLIC_SITE_URL).origin);
+  }
+  // Next's local server may normalize 127.0.0.1 to localhost internally.
+  const host = request.headers.get('host');
+  if (process.env.NODE_ENV === 'development' && host && /^(localhost|127\.0\.0\.1):\d+$/.test(host)) {
+    allowedOrigins.add(`http://${host}`);
+  }
+  if (!allowedOrigins.has(request.headers.get('origin') || '')) {
     return NextResponse.json({ error: 'Origen no permitido.' }, { status: 403 });
   }
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || '';

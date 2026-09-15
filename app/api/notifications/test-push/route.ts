@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getWorkspaceServerClient, workspaceErrorStatus } from '@/lib/workspaces/server';
 import { sendPixelPushBatch, type PixelPushTarget } from '@/lib/push/web-push';
 
 export const runtime = 'nodejs';
@@ -21,21 +21,7 @@ const getBearerToken = (request: NextRequest) => {
   return scheme?.toLowerCase() === 'bearer' ? token : '';
 };
 
-const getAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Falta configurar SUPABASE_SERVICE_ROLE_KEY en el entorno de Vercel.');
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-};
+const getAdminClient = getWorkspaceServerClient;
 
 const appUrlFromRequest = (request: NextRequest) => {
   const configuredUrl =
@@ -159,7 +145,7 @@ const deactivatePushSubscriptions = async (supabase: any, subscriptionIds: strin
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient(request);
     const token = getBearerToken(request);
     const { data: requesterData, error: requesterError } = await supabase.auth.getUser(token);
 
@@ -191,6 +177,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error sending test push notification:', error);
-    return json({ error: error.message || 'No fue posible enviar la prueba push.' }, 500);
+    return json({ error: error.message || 'No fue posible enviar la prueba push.' }, workspaceErrorStatus(error));
   }
 }

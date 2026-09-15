@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { getWorkspaceServerClient, requireWorkspaceContext, isPlatformAdministrator, WorkspaceAccessError } from '@/lib/workspaces/server';
 import { normalizeStorageKey, type DocumentStorageProvider } from './paths';
 import { canLoadProjectForUser } from '@/lib/project-access';
 import { getOrganizationIds } from '@/lib/organizations';
@@ -56,19 +56,7 @@ const splitContentTypes = (value: unknown) => {
     .filter(Boolean);
 };
 
-export const getServerSupabaseClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) return null;
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-};
+export const getServerSupabaseClient = getWorkspaceServerClient;
 
 export const getBearerToken = (request: Request) => {
   const header = request.headers.get('authorization') || '';
@@ -78,7 +66,7 @@ export const getBearerToken = (request: Request) => {
 
 export const getAuthenticatedUser = async (request: Request) => {
   const token = getBearerToken(request);
-  const supabase = getServerSupabaseClient();
+  const supabase = await getServerSupabaseClient(request);
 
   if (!token || !supabase) return null;
 
@@ -87,7 +75,7 @@ export const getAuthenticatedUser = async (request: Request) => {
   return data.user;
 };
 
-export const getDocumentStorageSettings = async (): Promise<DocumentStorageSettings> => {
+export const getDocumentStorageSettings = async (request: Request): Promise<DocumentStorageSettings> => {
   const envProvider = normalizeProvider(process.env.DOCUMENT_STORAGE_PROVIDER);
   const defaults: DocumentStorageSettings = {
     provider: envProvider,
@@ -98,8 +86,11 @@ export const getDocumentStorageSettings = async (): Promise<DocumentStorageSetti
     allowedContentTypes: splitContentTypes(process.env.DOCUMENT_STORAGE_ALLOWED_TYPES),
   };
 
-  const supabase = getServerSupabaseClient();
+  const supabase = await getServerSupabaseClient(request);
   if (!supabase) return defaults;
+  if (!isPlatformAdministrator(supabase.workspace.user)) {
+    return { ...defaults, provider: 'supabase', s3Bucket: '', s3Region: '', s3Prefix: '' };
+  }
 
   const { data, error } = await supabase
     .from(DOCUMENTS_TABLE)
@@ -113,9 +104,9 @@ export const getDocumentStorageSettings = async (): Promise<DocumentStorageSetti
   const saved = data.data as Record<string, any>;
   return {
     provider: normalizeProvider(saved.provider || defaults.provider),
-    s3Bucket: String(saved.s3Bucket || defaults.s3Bucket || '').trim(),
-    s3Region: String(saved.s3Region || defaults.s3Region || '').trim(),
-    s3Prefix: normalizeStorageKey(saved.s3Prefix || defaults.s3Prefix || ''),
+    s3Bucket: defaults.s3Bucket,
+    s3Region: defaults.s3Region,
+    s3Prefix: defaults.s3Prefix,
     maxFileSizeMb: numberOrNull(saved.maxFileSizeMb) ?? defaults.maxFileSizeMb,
     allowedContentTypes: splitContentTypes(saved.allowedContentTypes).length
       ? splitContentTypes(saved.allowedContentTypes)
@@ -126,8 +117,8 @@ export const getDocumentStorageSettings = async (): Promise<DocumentStorageSetti
   };
 };
 
-export const getStorageConfigStatus = async (): Promise<StorageConfigStatus> => {
-  const settings = await getDocumentStorageSettings();
+export const getStorageConfigStatus = async (request: Request): Promise<StorageConfigStatus> => {
+  const settings = await getDocumentStorageSettings(request);
   const requiredS3Variables: Array<[string, string | undefined]> = [
     ['AWS_ACCESS_KEY_ID', process.env.AWS_ACCESS_KEY_ID],
     ['AWS_SECRET_ACCESS_KEY', process.env.AWS_SECRET_ACCESS_KEY],
@@ -147,8 +138,13 @@ export const getStorageConfigStatus = async (): Promise<StorageConfigStatus> => 
   };
 };
 
-export const getS3RuntimeConfig = async (): Promise<S3RuntimeConfig> => {
-  const status = await getStorageConfigStatus();
+export const getS3RuntimeConfig = async (request: Request): Promise<S3RuntimeConfig> => {
+  const context = await requireWorkspaceContext(request);
+  if (!isPlatformAdministrator(context.user)) {
+    throw new WorkspaceAccessError('Tu espacio utiliza el almacenamiento privado de Pixel.');
+  }
+  const status = await getStorageConfigStatus(request);
+  const { workspaceId } = await requireWorkspaceContext(request);
 
   if (!status.s3Ready) {
     throw new Error(`Faltan variables para Amazon S3: ${status.missingS3Variables.join(', ')}`);
@@ -157,7 +153,7 @@ export const getS3RuntimeConfig = async (): Promise<S3RuntimeConfig> => {
   return {
     bucket: status.settings.s3Bucket || process.env.AWS_S3_BUCKET || '',
     region: status.settings.s3Region || process.env.AWS_REGION || '',
-    prefix: normalizeStorageKey(status.settings.s3Prefix || process.env.AWS_S3_PREFIX || ''),
+    prefix: [normalizeStorageKey(status.settings.s3Prefix || process.env.AWS_S3_PREFIX || ''), 'workspaces', workspaceId].filter(Boolean).join('/'),
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
     sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
@@ -165,8 +161,16 @@ export const getS3RuntimeConfig = async (): Promise<S3RuntimeConfig> => {
 };
 
 export const buildS3ObjectKey = (prefix: string, path: string) => {
-  const cleanPath = normalizeStorageKey(path);
+  let cleanPath = normalizeStorageKey(path);
   const cleanPrefix = normalizeStorageKey(prefix);
+  if (cleanPath.includes('\\') || cleanPath.split('/').some((part) => part === '.' || part === '..')) {
+    throw new Error('La ruta del archivo no es válida.');
+  }
+  const scope = cleanPrefix.match(/(?:^|\/)(workspaces\/[0-9a-f-]{36})$/i)?.[1];
+  if (scope && cleanPath.startsWith('workspaces/')) {
+    if (!cleanPath.startsWith(`${scope}/`)) throw new Error('El archivo pertenece a otro espacio de trabajo.');
+    cleanPath = cleanPath.slice(scope.length + 1);
+  }
   return cleanPrefix ? `${cleanPrefix}/${cleanPath}` : cleanPath;
 };
 
@@ -179,13 +183,13 @@ const matchesAuthenticatedUser = (record: any, user: any) => {
   );
 };
 
-const getProjectIdFromStorageKey = async (storageKey: string) => {
+const getProjectIdFromStorageKey = async (storageKey: string, request: Request) => {
   const cleanKey = normalizeStorageKey(storageKey);
   const projectSegment = cleanKey.split('/').find((segment, index, all) => all[index - 1] === 'projects') || '';
   const shortProjectId = projectSegment.split('--').pop()?.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || '';
   if (!shortProjectId) return '';
 
-  const supabase = getServerSupabaseClient();
+  const supabase = await getServerSupabaseClient(request);
   if (!supabase) return '';
   const { data } = await supabase
     .from(DOCUMENTS_TABLE)
@@ -197,8 +201,8 @@ const getProjectIdFromStorageKey = async (storageKey: string) => {
   )?.doc_id || '';
 };
 
-const getDocumentStorageRecord = async (storagePath: string) => {
-  const supabase = getServerSupabaseClient();
+const getDocumentStorageRecord = async (storagePath: string, request: Request) => {
+  const supabase = await getServerSupabaseClient(request);
   if (!supabase) return null;
   const { data } = await supabase
     .from(DOCUMENTS_TABLE)
@@ -208,7 +212,7 @@ const getDocumentStorageRecord = async (storagePath: string) => {
     .maybeSingle();
   if (data) return data;
 
-  const projectId = await getProjectIdFromStorageKey(storagePath);
+  const projectId = await getProjectIdFromStorageKey(storagePath, request);
   if (!projectId) return null;
   const { data: projectDocuments } = await supabase
     .from(DOCUMENTS_TABLE)
@@ -221,9 +225,9 @@ const getDocumentStorageRecord = async (storagePath: string) => {
   ) || null;
 };
 
-export const isDocumentStoragePathRestricted = async (storagePath: string) => {
-  const document = await getDocumentStorageRecord(storagePath);
-  const supabase = getServerSupabaseClient();
+export const isDocumentStoragePathRestricted = async (storagePath: string, request: Request) => {
+  const document = await getDocumentStorageRecord(storagePath, request);
+  const supabase = await getServerSupabaseClient(request);
   if (!document || !supabase) return false;
   if (document.data?.accessMode === 'restricted') return true;
 
@@ -231,7 +235,7 @@ export const isDocumentStoragePathRestricted = async (storagePath: string) => {
     .from(DOCUMENTS_TABLE)
     .select('doc_id,data')
     .eq('collection_path', document.collection_path);
-  const folders = new Map(
+  const folders = new Map<string, any>(
     (rows || [])
       .filter((row: any) => row.data?.itemKind === 'folder')
       .map((row: any) => [String(row.doc_id), row.data])
@@ -260,7 +264,7 @@ const canAccessDocumentRecord = ({
   canManageAccess: boolean;
 }) => {
   if (canManageAccess) return true;
-  const folders = new Map(
+  const folders = new Map<string, any>(
     documents
       .filter((item) => item?.data?.itemKind === 'folder')
       .map((item) => [String(item.doc_id), item.data])
@@ -297,13 +301,13 @@ export const authorizeProjectStorageAction = async ({
   permission: Extract<PermissionKey, 'documentView' | 'documentUpload' | 'documentDelete'>;
 }) => {
   const user = await getAuthenticatedUser(request);
-  const supabase = getServerSupabaseClient();
+  const supabase = await getServerSupabaseClient(request);
   if (!user || !supabase) return { ok: false as const, status: 401, error: 'Debes iniciar sesión para acceder a documentos.' };
 
-  const documentRecord = storagePath ? await getDocumentStorageRecord(storagePath) : null;
+  const documentRecord = storagePath ? await getDocumentStorageRecord(storagePath, request) : null;
   const projectId = documentRecord
     ? String(documentRecord.collection_path).split('/')[1] || ''
-    : await getProjectIdFromStorageKey(storageKey || storagePath || '');
+    : await getProjectIdFromStorageKey(storageKey || storagePath || '', request);
   if (!projectId) return { ok: false as const, status: 403, error: 'No se pudo vincular el archivo con un proyecto autorizado.' };
 
   const [{ data: peopleRows }, { data: projectRow }, { data: permissionsRow }] = await Promise.all([
@@ -323,7 +327,7 @@ export const authorizeProjectStorageAction = async ({
     String(user.email || '').toLowerCase(),
     ...profiles.flatMap((record: any) => [record.id, record.uid, record.authUserId, record.email, String(record.email || '').toLowerCase()]),
   ].filter(Boolean).map(String));
-  const organizationIds = Array.from(new Set(profiles.flatMap((record: any) => getOrganizationIds(record))));
+  const organizationIds = Array.from(new Set<string>(profiles.flatMap((record: any) => getOrganizationIds(record))));
   const canLoadProject = canLoadProjectForUser(projectRow.data, {
     assignedIds: Array.from(candidateIds),
     managedOrganizationIds: organizationIds,

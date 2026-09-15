@@ -4,7 +4,7 @@ import {
   consumeGithubState,
   createGithubAppJwt,
   getAppBaseUrl,
-  getServerSupabase,
+  getGithubCallbackClient,
   githubFetch,
   listInstallationRepositories,
   readDocument,
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const installationId = request.nextUrl.searchParams.get("installation_id") || "";
     if (!installationId) throw new Error("GitHub no devolvió el identificador de instalación.");
 
-    const supabase = getServerSupabase();
+    const supabase = await getGithubCallbackClient(state, "installation");
     const payload = await consumeGithubState(supabase, state, "installation");
     if (!payload.projectId) throw new Error("La autorización no contiene un proyecto de Pixel.");
 

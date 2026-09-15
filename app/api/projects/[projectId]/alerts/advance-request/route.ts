@@ -1,3 +1,4 @@
+import { workspaceErrorStatus } from '@/lib/workspaces/server';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { ensureProjectAccess, writeDocument } from '@/lib/github/server';
@@ -118,7 +119,7 @@ export async function GET(
     });
   } catch (error: any) {
     console.error('Error loading advance notification settings:', error);
-    return json({ error: error?.message || 'No fue posible cargar la configuración.' }, 500);
+    return json({ error: error?.message || 'No fue posible cargar la configuración.' }, workspaceErrorStatus(error));
   }
 }
 
@@ -217,6 +218,6 @@ export async function PUT(
     });
   } catch (error: any) {
     console.error('Error saving advance notification settings:', error);
-    return json({ error: error?.message || 'No fue posible guardar la configuración.' }, 500);
+    return json({ error: error?.message || 'No fue posible guardar la configuración.' }, workspaceErrorStatus(error));
   }
 }
