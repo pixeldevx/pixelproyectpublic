@@ -1,4 +1,4 @@
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from './client';
 
 const SESSION_LOAD_TIMEOUT_MS = 10000;
@@ -102,11 +102,13 @@ const withTimeout = async <T,>(
 };
 
 const runAuthListener = (callback: AuthListener, user: User | null) => {
-  void Promise.resolve()
-    .then(() => callback(user))
-    .catch((error) => {
+  try {
+    void Promise.resolve(callback(user)).catch((error) => {
       console.error('Error running Supabase auth listener:', error);
     });
+  } catch (error) {
+    console.error('Error running Supabase auth listener:', error);
+  }
 };
 
 class SupabaseAuthShim {
@@ -115,10 +117,15 @@ class SupabaseAuthShim {
   onAuthStateChanged(callback: AuthListener) {
     let active = true;
     let hasEmittedUser = false;
+    let lastEmittedUser: User | null = null;
+    let sessionVersion = 0;
+    let pendingEmission: ReturnType<typeof setTimeout> | undefined;
 
     const emitUserIfChanged = (nextUser: User | null) => {
       if (!active) return;
-      const changed = !isSameAuthUser(this.currentUser, nextUser);
+      // The sign-in/update helpers also update currentUser. Compare against
+      // what THIS subscriber received, or those helpers can hide the event.
+      const changed = !isSameAuthUser(lastEmittedUser, nextUser);
       this.currentUser = nextUser;
 
       // Supabase can emit INITIAL_SESSION, SIGNED_IN and TOKEN_REFRESHED again
@@ -126,36 +133,53 @@ class SupabaseAuthShim {
       // project screens and discards forms that are still being edited.
       if (hasEmittedUser && !changed) return;
       hasEmittedUser = true;
+      lastEmittedUser = nextUser;
       runAuthListener(callback, nextUser);
     };
 
+    const scheduleSession = (session: Session | null) => {
+      const version = ++sessionVersion;
+      if (pendingEmission !== undefined) clearTimeout(pendingEmission);
+
+      // Auth emits while holding its session lock. Consumers load profiles
+      // through Supabase, so start them in a later task, outside that lock.
+      pendingEmission = setTimeout(() => {
+        pendingEmission = undefined;
+        if (!active || version !== sessionVersion) return;
+        void syncStorageSession(session?.access_token || null)
+          .catch((error) => console.error('Private storage session failed:', error));
+        // A slow/failed file-cookie request must not stall a valid login.
+        emitUserIfChanged(mapUser(session?.user || null));
+      }, 0);
+    };
+
     const emitInitialSession = async () => {
+      const initialVersion = sessionVersion;
       try {
-        const { data } = await withTimeout(
+        const { data, error } = await withTimeout(
           supabase.auth.getSession(),
           SESSION_LOAD_TIMEOUT_MS,
           'Supabase tardó demasiado cargando la sesión guardada.'
         );
-        if (!active) return;
-        await syncStorageSession(data.session?.access_token || null);
-        emitUserIfChanged(mapUser(data.session?.user || null));
+        if (error) throw error;
+        if (!active || sessionVersion !== initialVersion) return;
+        scheduleSession(data.session);
       } catch (error) {
         console.error('Error loading Supabase session:', error);
-        if (!active) return;
-        emitUserIfChanged(null);
+        if (!active || sessionVersion !== initialVersion) return;
+        scheduleSession(null);
       }
     };
 
     void emitInitialSession();
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      void syncStorageSession(session?.access_token || null)
-        .catch((error) => console.error('Private storage session failed:', error))
-        .finally(() => emitUserIfChanged(mapUser(session?.user || null)));
+      if (active) scheduleSession(session);
     });
 
     return () => {
       active = false;
+      if (pendingEmission !== undefined) clearTimeout(pendingEmission);
       data.subscription.unsubscribe();
     };
   }

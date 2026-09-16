@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [authMessage, setAuthMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLoadingRecovery, setShowLoadingRecovery] = useState(false);
+  const isOpeningWorkspace = !isRecoveringPassword && Boolean(authMessage);
 
   useEffect(() => {
     if (!loading && user && workspace && !workspaceExpired) {
@@ -27,6 +28,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading) {
+      setShowLoadingRecovery(false);
       return;
     }
 
@@ -46,6 +48,8 @@ export default function LoginPage() {
         setAuthMessage('Te enviamos un enlace para restablecer tu contraseña. Revisa tu correo.');
       } else {
         await loginWithEmail(email, password);
+        setPassword('');
+        setAuthMessage('Sesión iniciada. Estamos preparando tu espacio…');
       }
     } catch (error: any) {
       console.error('Auth error:', error);
@@ -81,7 +85,9 @@ export default function LoginPage() {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 px-4">
         <div className="space-y-4 text-center">
-          <div className="text-slate-900">Cargando sesión...</div>
+          <div role="status" aria-live="polite" className="text-slate-900">
+            {isOpeningWorkspace ? 'Sesión iniciada. Preparando tu espacio…' : 'Cargando sesión…'}
+          </div>
           {showLoadingRecovery && (
             <div className="space-y-3">
               <p className="max-w-sm text-sm text-slate-500">
@@ -130,13 +136,13 @@ export default function LoginPage() {
         </div>
 
         {authMessage && (
-          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-700">
+          <div role="status" aria-live="polite" className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-700">
             {authMessage}
           </div>
         )}
 
         {visibleAuthError && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-center text-sm text-red-600">
+          <div role="alert" className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-center text-sm text-red-600">
             {visibleAuthError}
           </div>
         )}
@@ -154,6 +160,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 type="email"
                 required
+                disabled={isSubmitting || isOpeningWorkspace}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 className="block w-full rounded-lg border border-slate-300 py-2 pl-10 pr-3 text-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -175,6 +182,7 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   type="password"
                   required
+                  disabled={isSubmitting || isOpeningWorkspace}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="block w-full rounded-lg border border-slate-300 py-2 pl-10 pr-3 text-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -186,10 +194,10 @@ export default function LoginPage() {
 
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isOpeningWorkspace}
             className="w-full bg-indigo-600 py-2.5 text-white hover:bg-indigo-700"
           >
-            {isSubmitting ? 'Procesando...' : isRecoveringPassword ? 'Enviar enlace' : 'Iniciar sesión'}
+            {isSubmitting ? isRecoveringPassword ? 'Enviando enlace…' : 'Iniciando sesión…' : isOpeningWorkspace ? 'Abriendo tu espacio…' : isRecoveringPassword ? 'Enviar enlace' : 'Iniciar sesión'}
           </Button>
         </form>
 
@@ -197,12 +205,13 @@ export default function LoginPage() {
           {isRecoveringPassword ? '¿Recordaste tu contraseña?' : '¿Olvidaste tu contraseña?'}
           <button
             type="button"
+            disabled={isSubmitting || isOpeningWorkspace}
             onClick={() => {
               setIsRecoveringPassword((current) => !current);
               setAuthError('');
               setAuthMessage('');
             }}
-            className="ml-1 font-medium text-indigo-600 hover:text-indigo-800"
+            className="ml-1 font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-60"
           >
             {isRecoveringPassword ? 'Inicia sesión' : 'Enviar enlace'}
           </button>
